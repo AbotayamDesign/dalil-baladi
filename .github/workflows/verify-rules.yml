@@ -1,0 +1,70 @@
+name: Verify live Firestore security
+# Sends FCM pushes for news/shops docs that are published but not yet notified.
+# Auth: Workload Identity Federation (no service-account keys). Repo-scoped via
+# the provider condition assertion.repository == 'AbotayamDesign/dalil-baladi'.
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  id-token: write
+
+jobs:
+  notify:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: google-github-actions/auth@v2
+        with:
+          workload_identity_provider: ${{ secrets.GCP_WORKLOAD_IDENTITY_PROVIDER }}
+          service_account: ${{ secrets.GCP_SERVICE_ACCOUNT }}
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - run: npm install google-auth-library@9 --no-fund --no-audit
+
+      - name: Verify live allow and deny behavior
+        run: |
+          node <<'EOF'
+          const {GoogleAuth}=require('google-auth-library');
+          (async()=>{
+          const PROJECT='dalil-baladi', API='AIzaSyBcL6UF3z10fv5dU2oL7mjb02EQ8qPnE-8';
+          const root=`https://firestore.googleapis.com/v1/projects/${PROJECT}/databases/(default)/documents`;
+          const prefix=`projects/${PROJECT}/databases/(default)/documents/`;
+          const auth=new GoogleAuth({scopes:['https://www.googleapis.com/auth/cloud-platform']});
+          const c=await auth.getClient(), {token:admin}=await c.getAccessToken();
+          let r=await fetch('https://identitytoolkit.googleapis.com/v1/accounts:signUp?key='+API,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({returnSecureToken:true})});
+          let a=await r.json(); if(!r.ok)throw Error('Anonymous sign-in failed '+r.status);
+          const uid=a.localId, token=a.idToken, tag='qa_'+Date.now(), created=[];
+          let failures=0;
+          const sv=x=>({stringValue:x}), bv=x=>({booleanValue:x});
+          async function write(path,fields,tk,stamp){
+           const w={update:{name:prefix+path,fields}}; if(stamp)w.updateTransforms=[{fieldPath:stamp,setToServerValue:'REQUEST_TIME'}];
+           return fetch(root+':commit',{method:'POST',headers:{'Content-Type':'application/json',...(tk?{Authorization:'Bearer '+tk}:{})},body:JSON.stringify({writes:[w]})});
+          }
+          async function test(label,path,fields,tk,stamp,expect){const res=await write(path,fields,tk,stamp); const pass=expect==='allow'?res.ok:res.status===403;console.log((pass?'PASS ':'FAIL ')+label+' HTTP '+res.status);if(res.ok)created.push(path);if(!pass){failures++;console.log((await res.text()).slice(0,250));}}
+          try{
+          const comment={itemId:sv(tag),name:sv('فحص آلي'),text:sv('تعليق فحص مؤقت'),approved:bv(true)};
+          await test('clean instant comment','comments/'+tag,comment,token,'createdAt','allow');
+          await test('banned comment','comments/'+tag+'_bad',{...comment,text:sv('خول')},token,'createdAt','deny');
+          await test('oversize comment','comments/'+tag+'_long',{...comment,text:sv('س'.repeat(501))},token,'createdAt','deny');
+          await test('unapproved schema','comments/'+tag+'_false',{...comment,approved:bv(false)},token,'createdAt','deny');
+          await test('anonymous news write','news/'+tag,{published:bv(false),title:sv('فحص')},token,'createdAt','deny');
+          await test('unauthenticated news write','news/'+tag+'_none',{published:bv(false)},null,null,'deny');
+          await test('own like','likes/'+tag+'/devices/'+uid,{},token,'at','allow');
+          await test('foreign uid like','likes/'+tag+'/devices/foreign_uid',{},token,'at','deny');
+          await test('own share','shares/'+tag+'/devices/'+uid,{},token,'at','allow');
+          r=await fetch(root+'/likes/'+tag+'/devices/'+uid,{method:'DELETE',headers:{Authorization:'Bearer '+token}});console.log((r.ok?'PASS':'FAIL')+' own unlike HTTP '+r.status);if(!r.ok)failures++;
+          r=await fetch(root+'/comments/'+tag,{headers:{Authorization:'Bearer '+token}});console.log((r.ok?'PASS':'FAIL')+' shared comment read HTTP '+r.status);if(!r.ok)failures++;
+          }finally{
+           for(const path of created)await fetch(root+'/'+path,{method:'DELETE',headers:{Authorization:'Bearer '+admin}});
+           await fetch('https://identitytoolkit.googleapis.com/v1/accounts:delete?key='+API,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({idToken:token})});
+           console.log('Temporary test content and anonymous test user cleanup attempted');
+          }
+          if(failures)throw Error(failures+' security checks failed');
+          console.log('All security checks passed');
+          })().catch(e=>{console.error(e.message);process.exit(1)});
+          EOF
