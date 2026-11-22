@@ -40,6 +40,7 @@ jobs:
           // firebase-admin cannot parse WIF external_account credentials, so use
           // google-auth-library for the token and plain REST for Firestore + FCM.
           const { GoogleAuth } = require('google-auth-library');
+          const { createHash } = require('node:crypto');
           const PROJECT = process.env.GCP_PROJECT_ID;
           const FS = `https://firestore.googleapis.com/v1/projects/${PROJECT}/databases/(default)/documents`;
           const FCM = `https://fcm.googleapis.com/v1/projects/${PROJECT}/messages:send`;
@@ -113,6 +114,8 @@ jobs:
               let ok = 0, failed = 0;
               for (const t of tokens) {
                 const r = await send(t, title, body, id, isShop ? 'shop' : 'news');
+                const fingerprint=createHash('sha256').update(t).digest('hex').slice(0,16);
+                console.log(JSON.stringify({targetFingerprint:fingerprint,status:r,at:new Date().toISOString()}));
                 if (r === 'ok') ok++;
                 else if (r === 'dead') await deleteToken(t);
                 else failed++;
