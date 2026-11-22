@@ -1,0 +1,45 @@
+name: Migrate existing sourced news
+# Sends FCM pushes for news/shops docs that are published but not yet notified.
+# Auth: Workload Identity Federation (no service-account keys). Repo-scoped via
+# the provider condition assertion.repository == 'AbotayamDesign/dalil-baladi'.
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  id-token: write
+
+jobs:
+  notify:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: google-github-actions/auth@v2
+        with:
+          workload_identity_provider: ${{ secrets.GCP_WORKLOAD_IDENTITY_PROVIDER }}
+          service_account: ${{ secrets.GCP_SERVICE_ACCOUNT }}
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - run: npm install google-auth-library@9 --no-fund --no-audit
+
+      - name: Migrate and verify existing source content
+        run: |
+          node <<'EOF'
+          const {GoogleAuth}=require('google-auth-library');
+          const items=[{"id": "n2", "itemId": "n2", "title": "🦷 عيادة الأسنان: د. سارة علي — الأحد 22 نوفمبر من 5 مساءً", "sourceTitle": "المستوصف الخيري بالخشاشنه والمرساه", "sub": "21 نوفمبر 2026 · صفحة فيسبوك", "text": "أعلن المستوصف بتاريخ 21 نوفمبر تواجد د. سارة علي، أخصائي طب الأسنان، يوم الأحد 22 نوفمبر من الساعة 5 مساءً. للتأكد من المواعيد الحالية تواصل مع المستوصف مباشرة أو تابع الصفحة.", "url": "https://www.facebook.com/photo/?fbid=122156918247113572", "srcNote": "موجز من إعداد «دليل بلدي» عن منشور الصفحة — التفاصيل من المصدر:", "published": true, "notified": true}, {"id": "n1", "itemId": "n1", "title": "🐟 توزيع 140 كيلو سمك على الأسر المستحقة", "sourceTitle": "لجنة زكاة الخشاشنة والمرساة", "sub": "17 نوفمبر 2026 · صفحة فيسبوك", "text": "ضمن صدقة إطعام من أهل الخير، وزّعت اللجنة نحو 140 كيلو من السمك على الأسر الكبيرة والمستحقة بالقرية.", "url": "https://www.facebook.com/photo/?fbid=1450677230523325", "srcNote": "موجز من إعداد «دليل بلدي» عن منشور الصفحة — التفاصيل الكاملة من المصدر:", "published": true, "notified": true}, {"id": "n3", "itemId": "n3", "title": "🩺 (انتهى الموعد) باطني وأطفال: د. نهى علاء منصور", "sourceTitle": "المستوصف الخيري بالخشاشنه والمرساه", "sub": "12 نوفمبر 2026 · صفحة فيسبوك", "text": "إعلان سابق بتاريخ 12 نوفمبر: تواجدت د. نهى علاء منصور، باطني وأطفال، يوم الجمعة 13 نوفمبر من 4 إلى 6 مساءً. الموعد انتهى — تابع الصفحة للإعلانات الجديدة.", "url": "https://www.facebook.com/photo/?fbid=122155765311113572", "srcNote": "موجز من إعداد «دليل بلدي» عن منشور الصفحة — التفاصيل الكاملة من المصدر:", "published": true, "notified": true}, {"id": "n5", "itemId": "n5", "title": "🦴 (انتهى الموعد) عظام: د. محمود حافظ", "sourceTitle": "المستوصف الخيري بالخشاشنه والمرساه", "sub": "4 نوفمبر 2026 · صفحة فيسبوك", "text": "إعلان سابق بتاريخ 4 نوفمبر: تواجد د. محمود حافظ، أخصائي طب وجراحة العظام، يوم الجمعة 6 نوفمبر من 3 إلى 5 مساءً. الموعد انتهى — تابع الصفحة للإعلانات الجديدة.", "url": "https://www.facebook.com/photo/?fbid=122154763953113572", "srcNote": "موجز من إعداد «دليل بلدي» عن منشور الصفحة — التفاصيل الكاملة من المصدر:", "published": true, "notified": true}, {"id": "n4", "itemId": "n4", "title": "🤍 توزيع فراخ ومكرونة على الأسر المستحقة", "sourceTitle": "لجنة زكاة الخشاشنة والمرساة", "sub": "30 أكتوبر 2026 · صفحة فيسبوك", "text": "وزّعت اللجنة فراخ ومكرونة على الأسر المستحقة بالقرية، صدقة من أهل الخير بنية الشفاء والعافية.", "url": "https://www.facebook.com/photo/?fbid=1432726698985045", "srcNote": "موجز من إعداد «دليل بلدي» عن منشور الصفحة — التفاصيل الكاملة من المصدر:", "published": true, "notified": true}, {"id": "n6", "itemId": "n6", "title": "🌴 تبرع بالنخيل والبلح للعام الرابع على التوالي", "sourceTitle": "لجنة زكاة الخشاشنة والمرساة", "sub": "25 سبتمبر 2026 · صفحة فيسبوك", "text": "تبرع أحد أهل الخير بكمية من النخيل والبلح صدقة للقرية، وذلك للعام الرابع على التوالي حسب الصفحة.", "url": "https://www.facebook.com/profile.php?id=100067431841343", "srcNote": "موجز من إعداد «دليل بلدي» عن منشور الصفحة — التفاصيل الكاملة من المصدر:", "published": true, "notified": true}, {"id": "n7", "itemId": "n7", "title": "🌬️ حملة مراوح لمدارس القرية", "sourceTitle": "لجنة زكاة الخشاشنة والمرساة", "sub": "16 سبتمبر 2026 · صفحة فيسبوك", "text": "أطلقت اللجنة حملة لتوفير مراوح جانبية جديدة لمدارس القرية مع موجة الحر، وذكرت بعدها بدء شراء مراوح بالفعل.", "url": "https://www.facebook.com/profile.php?id=100067431841343", "srcNote": "موجز من إعداد «دليل بلدي» عن منشور الصفحة — التفاصيل الكاملة من المصدر:", "published": true, "notified": true}, {"id": "src-zakat", "itemId": "src-zakat", "title": "لجنة زكاة الخشاشنة والمرساة", "sourceTitle": "لجنة زكاة الخشاشنة والمرساة", "sub": "صفحة فيسبوك · مصدر أخبار", "text": "صفحة على فيسبوك باسم لجنة زكاة الخشاشنة والمرساة — تذكر الصفحة ارتباطها ببنك ناصر الاجتماعي، وتنشر أنشطة الزكاة وكفالة الأسر بالقرية. للمنشورات الكاملة والتفاصيل، من صفحتهم مباشرة.", "url": "https://www.facebook.com/profile.php?id=100067431841343", "srcNote": "وصف تعريفي من إعداد «دليل بلدي» — مش منشور منقول:", "published": true, "notified": true}, {"id": "src-clinic", "itemId": "src-clinic", "title": "المستوصف الخيري بالخشاشنه والمرساه", "sourceTitle": "المستوصف الخيري بالخشاشنه والمرساه", "sub": "صفحة فيسبوك · مصدر أخبار", "text": "صفحة المستوصف الخيري بالخشاشنه والمرساه على فيسبوك — تذكر الصفحة أنه تابع للجنة زكاة الخشاشنه والمرساه، وتنشر مواعيد الأطباء والعيادات. تابعها لآخر المواعيد من مصدرها مباشرة.", "url": "https://www.facebook.com/AlKhashashnahMarsahCharityClinic", "srcNote": "وصف تعريفي من إعداد «دليل بلدي» — مش منشور منقول:", "published": true, "notified": true}, {"id": "src-adrousi", "itemId": "src-adrousi", "title": "مؤسسة آل العدروسي الخيرية", "sourceTitle": "مؤسسة آل العدروسي الخيرية", "sub": "مجموعة فيسبوك · مصدر أخبار", "text": "مجموعة مؤسسة آل العدروسي الخيرية على فيسبوك — مجموعة عامة يظهر عليها نحو 7 آلاف عضو (منشوراتها تحتاج تسجيل دخول، فمش بنقدر نلخص منها حاليًا).", "url": "https://www.facebook.com/groups/1302527307045905", "srcNote": "وصف تعريفي من إعداد «دليل بلدي» — مش منشور منقول:", "published": true, "notified": true}];
+          (async()=>{
+          const auth=new GoogleAuth({scopes:['https://www.googleapis.com/auth/datastore']});
+          const c=await auth.getClient(), {token}=await c.getAccessToken();
+          const root='https://firestore.googleapis.com/v1/projects/dalil-baladi/databases/(default)/documents';
+          let i=0;
+          for(const source of items){const {id,...data}=source;const fields={};for(const [k,v]of Object.entries(data))fields[k]=typeof v==='boolean'?{booleanValue:v}:{stringValue:v};fields.createdAt={timestampValue:new Date(Date.UTC(2026,10,22,15,0)-i++*60000).toISOString()};
+          const r=await fetch(root+'/news/'+id,{method:'PATCH',headers:{Authorization:'Bearer '+token,'Content-Type':'application/json'},body:JSON.stringify({fields})});if(!r.ok)throw Error('Migrate '+id+' '+r.status);
+          const check=await fetch(root+'/news/'+id,{headers:{Authorization:'Bearer '+token}});const j=await check.json();if(j.fields?.notified?.booleanValue!==true||j.fields?.itemId?.stringValue!==id)throw Error('Readback '+id);console.log('Verified '+id+' existing source, already notified');
+          }
+          console.log('Migrated and read-verified '+items.length+' existing sourced news items; no notifications requested.');
+          })().catch(e=>{console.error(e.message);process.exit(1)});
+          EOF
