@@ -1,5 +1,5 @@
-const CACHE_NAME='dalil-baladi-v5';
-const ASSETS=['./','./index.html','./data.json','./manifest.webmanifest','./icon.svg'];
+const CACHE_NAME='dalil-baladi-v6';
+const ASSETS=['./','./index.html','./data.json','./manifest.webmanifest','./icon.svg','./app-firebase.js','./firebase-messaging-sw.js'];
 self.addEventListener('install',e=>{
   e.waitUntil(caches.open(CACHE_NAME).then(c=>c.addAll(ASSETS)).then(()=>self.skipWaiting()));
 });
