@@ -241,7 +241,7 @@ async function subscribePush(){
   const perm = await Notification.requestPermission();
   if(perm !== 'granted') return setPushUI('denied');
   try{
-    const reg = await navigator.serviceWorker.register('sw.js');
+    const reg = await navigator.serviceWorker.register('sw.js',{updateViaCache:'none'});
     const messaging = firebase.messaging();
     const token = await messaging.getToken({ vapidKey: VAPID_KEY, serviceWorkerRegistration: reg });
     if(!token) return setPushUI('error');
