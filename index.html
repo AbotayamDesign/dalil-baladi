@@ -450,6 +450,7 @@ renderNews();
       <form id="adminLoginForm">
         <input type="email" name="email" placeholder="البريد الإلكتروني" required autocomplete="username">
         <input type="password" name="password" placeholder="كلمة السر" required autocomplete="current-password">
+        <label style="display:block;font-size:13px"><input type="checkbox" name="draft" style="width:auto"> حفظ كمسودة خاصة، بدون نشر أو إشعار</label>
         <button class="primary" type="submit">دخول</button>
         <div id="adminLoginErr"></div>
       </form>
@@ -465,7 +466,8 @@ renderNews();
         <label style="display:block;font-size:13px;margin:8px 0">صورة اختيارية (JPG أو PNG أو WebP، يتم ضغطها)
         <input type="file" name="photo" accept="image/jpeg,image/png,image/webp" aria-label="اختيار صورة"></label>
         <label style="display:block;font-size:13px"><input type="checkbox" name="removePhoto" style="width:auto"> حذف الصورة الحالية عند التعديل</label>
-        <button class="primary" type="submit">نشر الخبر</button><span class="ok"></span>
+        <label style="display:block;font-size:13px"><input type="checkbox" name="draft" style="width:auto"> حفظ كمسودة خاصة، بدون نشر أو إشعار</label>
+        <button class="primary" type="submit">حفظ الخبر</button><span class="ok"></span>
       </form>
       <div class="admin-sec">🏪 إضافة محل جديد</div>
       <form id="publishShop">
@@ -478,13 +480,14 @@ renderNews();
         <label style="display:block;font-size:13px;margin:8px 0">صورة اختيارية (JPG أو PNG أو WebP، يتم ضغطها)
         <input type="file" name="photo" accept="image/jpeg,image/png,image/webp" aria-label="اختيار صورة"></label>
         <label style="display:block;font-size:13px"><input type="checkbox" name="removePhoto" style="width:auto"> حذف الصورة الحالية عند التعديل</label>
-        <button class="primary" type="submit">نشر المحل</button><span class="ok"></span>
+        <label style="display:block;font-size:13px"><input type="checkbox" name="draft" style="width:auto"> حفظ كمسودة خاصة، بدون نشر أو إشعار</label>
+        <button class="primary" type="submit">حفظ المحل</button><span class="ok"></span>
       </form>
       <div class="admin-sec">💬 أحدث التعليقات (احذف المسيء منها)</div>
       <div id="pendingComments"></div>
-      <div class="admin-sec">🗂️ إدارة الأخبار المنشورة</div>
+      <div class="admin-sec">🗂️ إدارة الأخبار والمسودات</div>
       <div id="manageNews"></div>
-      <div class="admin-sec">🗂️ إدارة المحلات المنشورة</div>
+      <div class="admin-sec">🗂️ إدارة المحلات والمسودات</div>
       <div id="manageShops"></div>
     </div>
   </div>
@@ -494,6 +497,6 @@ renderNews();
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-messaging-compat.js"></script>
-<script src="app-firebase.js?v=13"></script>
+<script src="app-firebase.js?v=14"></script>
 </body>
 </html>
