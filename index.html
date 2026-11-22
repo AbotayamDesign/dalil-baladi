@@ -3,125 +3,362 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<meta name="theme-color" content="#1877f2">
 <title>دليل بلدي - الخشاشنه والمرساه</title>
-<meta name="description" content="دليل محلات وخدمات وأخبار قرية الخشاشنه والمرساه - مركز دكرنس - الدقهلية">
-<meta name="theme-color" content="#0d7a57">
+<meta name="description" content="دليل محلات وأخبار قرية الخشاشنه والمرساه - مركز دكرنس، الدقهلية">
 <link rel="manifest" href="manifest.webmanifest">
-<link rel="icon" type="image/svg+xml" href="icon.svg">
-<link rel="apple-touch-icon" href="icon.svg">
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700;800&display=swap" rel="stylesheet">
+<link rel="icon" href="icon.svg" type="image/svg+xml">
+<link rel="apple-touch-icon" href="icon-192.png">
 <style>
-:root{--green:#0d7a57;--green-dark:#0a5f45;--gold:#d4af37;--bg:#f4f6f5;--card:#fff;--text:#1c2b26;--muted:#5d6f68;--line:#e2e8e5;}
-*{box-sizing:border-box;margin:0;padding:0}
-body{font-family:'Cairo',system-ui,sans-serif;background:var(--bg);color:var(--text);line-height:1.7}
-header{background:linear-gradient(160deg,var(--green),var(--green-dark));color:#fff;padding:22px 16px 46px;text-align:center}
-header img{width:64px;height:64px;border-radius:16px;box-shadow:0 4px 14px rgba(0,0,0,.25)}
-header h1{font-size:1.5rem;font-weight:800;margin-top:8px}
-header p{font-size:.85rem;opacity:.92}
-.banner{background:var(--gold);color:#3d2f00;font-size:.82rem;font-weight:700;text-align:center;padding:7px 12px 34px}
-.wrap{max-width:640px;margin:0 auto;padding:0 14px 40px}
-.searchbox{margin:-26px auto 14px;background:#fff;border-radius:14px;box-shadow:0 6px 18px rgba(0,0,0,.10);display:flex;align-items:center;padding:4px 14px}
-.searchbox input{border:0;outline:0;flex:1;font:inherit;font-size:1rem;padding:10px 6px;background:transparent}
-.chips{display:flex;gap:8px;overflow-x:auto;padding:6px 2px 12px;scrollbar-width:none}
-.chips::-webkit-scrollbar{display:none}
-.chip{flex:0 0 auto;border:1px solid var(--line);background:#fff;border-radius:999px;padding:6px 14px;font:inherit;font-size:.85rem;font-weight:600;color:var(--muted);cursor:pointer}
-.chip.on{background:var(--green);border-color:var(--green);color:#fff}
-.card{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:14px;margin-bottom:10px}
-.card h3{font-size:1.05rem;font-weight:800;display:flex;align-items:center;gap:8px;flex-wrap:wrap}
-.badge{font-size:.68rem;font-weight:700;background:#fdf3d7;color:#7a5c00;border-radius:6px;padding:2px 8px}
-.cat{font-size:.75rem;font-weight:700;color:var(--green)}
-.meta{font-size:.88rem;color:var(--muted);margin-top:2px}
-.actions{display:flex;gap:8px;margin-top:10px}
-.btn{flex:1;text-align:center;text-decoration:none;font-weight:700;font-size:.88rem;border-radius:10px;padding:9px 6px}
-.btn-call{background:var(--green);color:#fff}
-.btn-wa{background:#1faa55;color:#fff}
-.btn-ghost{background:#eef4f1;color:var(--green-dark)}
-section{margin-top:26px}
-section>h2{font-size:1.15rem;font-weight:800;margin-bottom:4px;display:flex;align-items:center;gap:8px}
-section .sub{font-size:.85rem;color:var(--muted);margin-bottom:12px}
-.news-card{display:flex;align-items:center;gap:12px;text-decoration:none;color:inherit}
-.news-card .ic{flex:0 0 44px;width:44px;height:44px;border-radius:12px;background:#e8f0ee;display:flex;align-items:center;justify-content:center;font-size:1.3rem}
-.news-card h3{font-size:.98rem;font-weight:800}
-.news-card p{font-size:.8rem;color:var(--muted)}
-.news-card .go{margin-inline-start:auto;color:var(--green);font-weight:800;font-size:1.1rem}
-.howto{background:#fff;border:1px dashed var(--green);border-radius:14px;padding:14px;font-size:.88rem}
-.howto li{margin-inline-start:18px;margin-bottom:4px}
-footer{text-align:center;font-size:.78rem;color:var(--muted);margin-top:30px}
-.empty{text-align:center;color:var(--muted);padding:26px 0;font-size:.9rem}
+  :root{
+    --fb-blue:#1877f2; --fb-blue-dark:#166fe0; --bg:#f0f2f5;
+    --card:#ffffff; --text:#050505; --secondary:#65676b; --divider:#e4e6eb;
+  }
+  *{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+  html{scroll-behavior:smooth}
+  body{font-family:'Segoe UI',Tahoma,Arial,sans-serif;background:var(--bg);color:var(--text);font-size:15px;line-height:1.5}
+  button{font-family:inherit;cursor:pointer;border:none;background:none}
+  a{color:var(--fb-blue);text-decoration:none}
+
+  /* ===== Top bar ===== */
+  .topbar{position:sticky;top:0;z-index:50;background:var(--fb-blue);color:#fff;
+    display:flex;align-items:center;gap:10px;padding:0 12px;height:56px;
+    box-shadow:0 1px 4px rgba(0,0,0,.25)}
+  .topbar .logo{display:flex;align-items:center;gap:8px;font-weight:800;font-size:20px;letter-spacing:-.3px}
+  .topbar .logo img{width:32px;height:32px;border-radius:50%;background:#fff;padding:2px}
+  .topbar .spacer{flex:1}
+  .topbar .icon-btn{width:36px;height:36px;border-radius:50%;background:rgba(255,255,255,.18);
+    display:flex;align-items:center;justify-content:center;color:#fff}
+  .topbar .icon-btn:active{background:rgba(255,255,255,.32)}
+  .topbar .icon-btn svg{width:20px;height:20px;fill:#fff}
+
+  /* ===== Tabs ===== */
+  .tabs{position:sticky;top:56px;z-index:49;background:var(--card);display:flex;
+    border-bottom:1px solid var(--divider)}
+  .tab{flex:1;display:flex;flex-direction:column;align-items:center;gap:2px;padding:9px 0 7px;
+    color:var(--secondary);font-size:12px;font-weight:600;border-bottom:3px solid transparent}
+  .tab svg{width:24px;height:24px;fill:var(--secondary)}
+  .tab.active{color:var(--fb-blue);border-bottom-color:var(--fb-blue)}
+  .tab.active svg{fill:var(--fb-blue)}
+
+  .view{display:none;padding-bottom:80px}
+  .view.active{display:block}
+
+  /* ===== Feed cards ===== */
+  .card{background:var(--card);margin:8px 0;padding:12px 12px 4px;border-top:1px solid var(--divider);border-bottom:1px solid var(--divider)}
+  @media(min-width:560px){.card{margin:12px auto;max-width:528px;border:1px solid var(--divider);border-radius:10px}}
+  .post-head{display:flex;align-items:center;gap:10px;margin-bottom:8px}
+  .avatar{width:40px;height:40px;border-radius:50%;flex-shrink:0;display:flex;align-items:center;justify-content:center;
+    color:#fff;font-weight:700;font-size:17px}
+  .post-head .who{flex:1;min-width:0}
+  .post-head .name{font-weight:700;font-size:15px}
+  .post-head .sub{font-size:13px;color:var(--secondary)}
+  .badge-demo{display:inline-block;background:#fff3cd;color:#8a6d00;font-size:11px;font-weight:700;
+    border-radius:4px;padding:1px 6px;margin-inline-start:6px;vertical-align:middle}
+  .post-text{font-size:15px;margin:4px 0 8px;white-space:pre-wrap;word-wrap:break-word}
+  .post-text .src-note{display:block;font-size:12.5px;color:var(--secondary);margin-top:6px}
+  .source-link{display:inline-flex;align-items:center;gap:5px;font-size:13.5px;font-weight:600;margin-bottom:6px}
+  .source-link svg{width:15px;height:15px;fill:var(--fb-blue)}
+
+  .stats-row{display:flex;justify-content:space-between;padding:6px 2px;color:var(--secondary);font-size:13.5px}
+  .actions{display:flex;border-top:1px solid var(--divider);margin-top:2px}
+  .action{flex:1;display:flex;align-items:center;justify-content:center;gap:6px;
+    padding:7px 0;margin:3px 0;border-radius:6px;color:var(--secondary);font-weight:600;font-size:14px}
+  .action:active{background:var(--bg)}
+  .action svg{width:18px;height:18px;fill:var(--secondary)}
+  .action.liked{color:var(--fb-blue)}
+  .action.liked svg{fill:var(--fb-blue)}
+  .action.disabled{opacity:.55}
+
+  /* ===== Search ===== */
+  .search-wrap{position:sticky;top:110px;z-index:40;padding:8px 12px;background:var(--bg)}
+  .search-box{display:flex;align-items:center;gap:8px;background:#e4e6eb;border-radius:20px;padding:8px 14px}
+  .search-box svg{width:17px;height:17px;fill:var(--secondary);flex-shrink:0}
+  .search-box input{flex:1;border:none;background:none;outline:none;font-size:15px;font-family:inherit;color:var(--text)}
+  .chips{display:flex;gap:8px;overflow-x:auto;padding:2px 12px 8px;scrollbar-width:none}
+  .chips::-webkit-scrollbar{display:none}
+  .chip{flex-shrink:0;background:var(--card);border:1px solid var(--divider);border-radius:18px;
+    padding:6px 14px;font-size:13.5px;font-weight:600;color:var(--secondary)}
+  .chip.active{background:#e7f0fd;color:var(--fb-blue);border-color:#bcd6fa}
+
+  /* ===== Install card ===== */
+  .install-card{background:linear-gradient(135deg,#1877f2,#0e5ecf);color:#fff;margin:8px 12px;border-radius:12px;padding:16px}
+  @media(min-width:560px){.install-card{margin:12px auto;max-width:504px}}
+  .install-card h3{font-size:17px;margin-bottom:4px}
+  .install-card p{font-size:13.5px;opacity:.92;margin-bottom:10px}
+  .install-btn{background:#fff;color:var(--fb-blue);font-weight:700;font-size:15px;
+    border-radius:8px;padding:10px 20px;width:100%}
+  .install-btn:active{opacity:.9}
+
+  .welcome-card{background:var(--card);margin:8px 12px;border-radius:12px;padding:14px;border:1px solid var(--divider)}
+  @media(min-width:560px){.welcome-card{margin:12px auto;max-width:504px}}
+  .welcome-card h2{font-size:17px;margin-bottom:4px}
+  .welcome-card p{font-size:13.5px;color:var(--secondary)}
+
+  .footer-note{text-align:center;color:var(--secondary);font-size:12px;padding:16px 20px;line-height:1.7}
+
+  /* ===== Modal ===== */
+  .modal-bg{position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:100;display:none;
+    align-items:flex-end;justify-content:center}
+  .modal-bg.show{display:flex}
+  .modal{background:#fff;width:100%;max-width:560px;border-radius:14px 14px 0 0;padding:18px;max-height:80vh;overflow-y:auto}
+  .modal h3{font-size:16px;margin-bottom:8px}
+  .modal ol{padding-inline-start:20px;font-size:14px;color:var(--text)}
+  .modal ol li{margin-bottom:6px}
+  .modal .close{margin-top:12px;width:100%;background:var(--fb-blue);color:#fff;border-radius:8px;padding:10px;font-weight:700;font-size:15px}
+
+  .empty-msg{text-align:center;color:var(--secondary);padding:30px 20px;font-size:14px}
 </style>
 </head>
 <body>
-<header>
-  <img src="icon.svg" alt="دليل بلدي">
-  <h1>دليل بلدي</h1>
-  <p id="villageLine">الخشاشنه والمرساه - مركز دكرنس - الدقهلية</p>
-</header>
-<div class="banner">نسخة أولى للتجربة — المحلات المعروضة أمثلة توضيحية مش حقيقية، وطريقة الإضافة الرسمية لسه بتتأكد</div>
-<div class="wrap">
-  <div class="searchbox">🔎 <input id="q" type="search" placeholder="دوّر على محل أو خدمة أو رقم..."></div>
-  <div class="chips" id="chips"></div>
-  <div id="list"></div>
 
-  <section>
-    <h2>📣 أضف محلك أو خدمتك</h2>
-    <p class="sub">تسجيل المحلات هيفتح قريب. دي نسخة تجريبية أولى، وطريقة الإضافة الرسمية هتتأكد قبل ما ننشرها.</p>
-    <span class="btn btn-ghost" style="display:block;opacity:.6;cursor:not-allowed">إضافة محل (قريبًا)</span>
-  </section>
-
-  <section>
-    <h2>📰 أخبار البلد</h2>
-    <p class="sub">تابع آخر أخبار البلد من صفحاتها الرسمية على فيسبوك:</p>
-    <div id="news"></div>
-  </section>
-
-  <section>
-    <h2>📲 ثبّته على موبايلك</h2>
-    <div class="howto"><ol>
-      <li>افتح اللينك في متصفح كروم على موبايلك.</li>
-      <li>اضغط على قائمة النقط (⋮) فوق.</li>
-      <li>اختار «إضافة إلى الشاشة الرئيسية».</li>
-      <li>هتلاقي أيقونة «دليل بلدي» جنب تطبيقاتك وتفتح منها مباشرة.</li>
-    </ol></div>
-  </section>
-  <footer>دليل بلدي — تجمع كل حاجة تخص بلدك في مكان واحد<br><span id="upd"></span></footer>
+<div class="topbar">
+  <div class="logo"><img src="icon.svg" alt="دليل بلدي"><span>دليل بلدي</span></div>
+  <div class="spacer"></div>
+  <button class="icon-btn" id="searchTopBtn" aria-label="بحث">
+    <svg viewBox="0 0 24 24"><path d="M15.5 14h-.79l-.28-.27a6.5 6.5 0 1 0-.7.7l.27.28v.79l5 4.99L20.49 19l-4.99-5zm-6 0A4.5 4.5 0 1 1 14 9.5 4.5 4.5 0 0 1 9.5 14z"/></svg>
+  </button>
+  <button class="icon-btn" id="installTopBtn" aria-label="تثبيت التطبيق">
+    <svg viewBox="0 0 24 24"><path d="M19 12v7H5v-7H3v7c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2v-7h-2zm-6 .67l2.59-2.58L17 11.5l-5 5-5-5 1.41-1.41L11 12.67V3h2z"/></svg>
+  </button>
 </div>
+
+<div class="tabs">
+  <button class="tab active" data-view="home">
+    <svg viewBox="0 0 24 24"><path d="M10 20v-6h4v6h5v-8h3L12 3 2 12h3v8z"/></svg>
+    <span>الرئيسية</span>
+  </button>
+  <button class="tab" data-view="shops">
+    <svg viewBox="0 0 24 24"><path d="M20 4H4v2h16V4zm1 10v-2l-1-5H4l-1 5v2h1v6h10v-6h4v6h2v-6h1zm-9 4H6v-4h6v4z"/></svg>
+    <span>المحلات</span>
+  </button>
+  <button class="tab" data-view="news">
+    <svg viewBox="0 0 24 24"><path d="M19 3H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm-5 14H7v-2h7v2zm3-4H7v-2h10v2zm0-4H7V7h10v2z"/></svg>
+    <span>الأخبار</span>
+  </button>
+</div>
+
+<!-- ===== Home ===== -->
+<div class="view active" id="view-home">
+  <div class="welcome-card">
+    <h2>أهلًا بيك في دليل بلدي 👋</h2>
+    <p>دليل محلات وأخبار قرية الخشاشنه والمرساه — مركز دكرنس، محافظة الدقهلية. نسخة أولى للتجربة.</p>
+  </div>
+  <div class="install-card" id="installCard">
+    <h3>⬇️ ثبّت التطبيق على موبايلك</h3>
+    <p>اضغط الزرار وهيطلعلك تأكيد التثبيت — هيظهر دليل بلدي بأيقونته جنب باقي التطبيقات، مجانًا ومن غير متجر.</p>
+    <button class="install-btn" id="installBtn">تثبيت التطبيق</button>
+  </div>
+  <div id="homeNews"></div>
+</div>
+
+<!-- ===== Shops ===== -->
+<div class="view" id="view-shops">
+  <div class="search-wrap">
+    <div class="search-box">
+      <svg viewBox="0 0 24 24"><path d="M15.5 14h-.79l-.28-.27a6.5 6.5 0 1 0-.7.7l.27.28v.79l5 4.99L20.49 19l-4.99-5zm-6 0A4.5 4.5 0 1 1 14 9.5 4.5 4.5 0 0 1 9.5 14z"/></svg>
+      <input type="text" id="searchInput" placeholder="دوّر على محل أو خدمة...">
+    </div>
+  </div>
+  <div class="chips" id="chips"></div>
+  <div id="shopsList"></div>
+  <div class="card" style="text-align:center;padding:16px">
+    <div style="font-weight:700;margin-bottom:4px">عندك محل أو خدمة؟ 🏪</div>
+    <div style="font-size:13.5px;color:var(--secondary);margin-bottom:10px">إضافة المحلات للدليل هتتفعّل قريبًا.</div>
+    <button class="action disabled" style="max-width:220px;margin:0 auto;border:1px solid var(--divider);border-radius:8px;padding:8px">إضافة محل (قريبًا)</button>
+  </div>
+</div>
+
+<!-- ===== News ===== -->
+<div class="view" id="view-news">
+  <div id="newsList"></div>
+</div>
+
+<div class="footer-note">
+  دليل بلدي — نسخة تجريبية • مش تابع لفيسبوك بأي شكل<br>
+  زرار الإعجاب شغال وبيتسجّل على جهازك بس لحد ما يتفعّل النظام الكامل • التعليقات قريبًا
+</div>
+
+<!-- Install instructions modal -->
+<div class="modal-bg" id="installModal">
+  <div class="modal">
+    <h3>طريقة تثبيت التطبيق</h3>
+    <ol>
+      <li>افتح قائمة المتصفح (النقط <b>⋮</b> فوق).</li>
+      <li>اختار <b>«تثبيت التطبيق»</b> أو <b>«إضافة إلى الشاشة الرئيسية»</b>.</li>
+      <li>اضغط <b>تثبيت</b> — هتلاقي أيقونة دليل بلدي جنب تطبيقاتك.</li>
+    </ol>
+    <button class="close" id="installModalClose">تمام</button>
+  </div>
+</div>
+
 <script>
-let DATA=null, activeCat='الكل';
-fetch('data.json').then(r=>r.json()).then(d=>{DATA=d;init();}).catch(()=>{document.getElementById('list').innerHTML='<p class="empty">حصلت مشكلة في تحميل البيانات، جرّب تحديث الصفحة.</p>';});
-function init(){
-  document.getElementById('villageLine').textContent = DATA.village+' - '+DATA.district;
-  document.getElementById('upd').textContent = 'آخر تحديث: '+DATA.updated;
-  const chips=document.getElementById('chips');
-  DATA.categories.forEach(c=>{
-    const b=document.createElement('button');b.className='chip'+(c===activeCat?' on':'');b.textContent=c;
-    b.onclick=()=>{activeCat=c;document.querySelectorAll('.chip').forEach(x=>x.classList.toggle('on',x===b));render();};
-    chips.appendChild(b);
+/* ---------- Tabs ---------- */
+const tabs=document.querySelectorAll('.tab');
+function showView(name){
+  tabs.forEach(t=>t.classList.toggle('active',t.dataset.view===name));
+  document.querySelectorAll('.view').forEach(v=>v.classList.toggle('active',v.id==='view-'+name));
+  window.scrollTo({top:0});
+}
+tabs.forEach(t=>t.addEventListener('click',()=>showView(t.dataset.view)));
+document.getElementById('searchTopBtn').addEventListener('click',()=>{
+  showView('shops');
+  setTimeout(()=>document.getElementById('searchInput').focus(),150);
+});
+
+/* ---------- Data ---------- */
+const AVATAR_COLORS=['#1877f2','#42b72a','#f02849','#8a3ab9','#f7b928','#009688','#e91e63','#3f51b5','#ff5722','#607d8b'];
+function avatarColor(name){let h=0;for(const c of name)h=(h*31+c.charCodeAt(0))>>>0;return AVATAR_COLORS[h%AVATAR_COLORS.length];}
+function initialOf(name){const m=name.match(/[\u0600-\u06FFa-zA-Z]/);return m?m[0]:'د';}
+
+const LIKES_KEY='dalil_baladi_likes_v1';
+function getLikes(){try{return JSON.parse(localStorage.getItem(LIKES_KEY))||{}}catch(e){return{}}}
+function setLikes(o){localStorage.setItem(LIKES_KEY,JSON.stringify(o));}
+
+const LIKE_SVG='<svg viewBox="0 0 24 24"><path d="M1 21h4V9H1v12zm22-11c0-1.1-.9-2-2-2h-6.31l.95-4.57.03-.32c0-.41-.17-.79-.44-1.06L14.17 1 7.59 7.59C7.22 7.95 7 8.45 7 9v10c0 1.1.9 2 2 2h9c.83 0 1.54-.5 1.84-1.22l3.02-7.05c.09-.23.14-.47.14-.73v-2z"/></svg>';
+const COMMENT_SVG='<svg viewBox="0 0 24 24"><path d="M21.99 4c0-1.1-.89-2-1.99-2H4c-1.1 0-2 .9-2 2v12c0 1.1.9 2 2 2h14l4 4-.01-18z"/></svg>';
+const SHARE_SVG='<svg viewBox="0 0 24 24"><path d="M18 16.08c-.76 0-1.44.3-1.96.77L8.91 12.7c.05-.23.09-.46.09-.7s-.04-.47-.09-.7l7.05-4.11c.54.5 1.25.81 2.04.81 1.66 0 3-1.34 3-3s-1.34-3-3-3-3 1.34-3 3c0 .24.04.47.09.7L8.04 9.81C7.5 9.31 6.79 9 6 9c-1.66 0-3 1.34-3 3s1.34 3 3 3c.79 0 1.5-.31 2.04-.81l7.12 4.16c-.05.21-.08.43-.08.65 0 1.61 1.31 2.92 2.92 2.92 1.61 0 2.92-1.31 2.92-2.92s-1.31-2.92-2.92-2.92z"/></svg>';
+const LINK_SVG='<svg viewBox="0 0 24 24"><path d="M19 19H5V5h7V3H5c-1.11 0-2 .9-2 2v14c0 1.1.89 2 2 2h14c1.1 0 2-.9 2-2v-7h-2v7zM14 3v2h3.59l-9.83 9.83 1.41 1.41L19 6.41V10h2V3h-7z"/></svg>';
+
+function actionBar(item){
+  const likes=getLikes();
+  const liked=!!likes[item.id];
+  const count=(item.baseLikes||0)+(liked?1:0);
+  return `
+  <div class="stats-row">
+    <span class="like-count" data-id="${item.id}">👍 ${count}</span>
+    <span>${item.comments||0} تعليق · ${item.shares||0} مشاركة</span>
+  </div>
+  <div class="actions">
+    <button class="action like-btn ${liked?'liked':''}" data-id="${item.id}">${LIKE_SVG}<span>أعجبني</span></button>
+    <button class="action disabled" title="قريبًا">${COMMENT_SVG}<span>تعليق</span></button>
+    <button class="action share-btn" data-id="${item.id}" data-title="${encodeURIComponent(item.title)}" data-url="${encodeURIComponent(item.url||location.href)}">${SHARE_SVG}<span>مشاركة</span></button>
+  </div>`;
+}
+
+function postCard(item,opts){
+  opts=opts||{};
+  const demo=item.demo?'<span class="badge-demo">مثال تجريبي</span>':'';
+  const link=item.url?`<a class="source-link" href="${item.url}" target="_blank" rel="noopener">${LINK_SVG}${opts.linkLabel||'المصدر على فيسبوك'}</a>`:'';
+  const srcNote=item.srcNote?`<span class="src-note">${item.srcNote}</span>`:'';
+  return `<article class="card">
+    <div class="post-head">
+      <div class="avatar" style="background:${avatarColor(item.title)}">${initialOf(item.title)}</div>
+      <div class="who">
+        <div class="name">${item.title}${demo}</div>
+        <div class="sub">${item.sub||''}</div>
+      </div>
+    </div>
+    <div class="post-text">${item.text}${srcNote}</div>
+    ${link}
+    ${actionBar(item)}
+  </article>`;
+}
+
+/* ---------- Shops ---------- */
+let SHOPS=[];
+let activeCat='الكل';
+function renderChips(cats){
+  const el=document.getElementById('chips');
+  el.innerHTML='';
+  ['الكل',...cats].forEach(c=>{
+    const b=document.createElement('button');
+    b.className='chip'+(c===activeCat?' active':'');
+    b.textContent=c;
+    b.onclick=()=>{activeCat=c;renderChips(cats);renderShops();};
+    el.appendChild(b);
   });
-  document.getElementById('q').addEventListener('input',render);
-  render(); renderNews();
 }
-function render(){
-  const q=document.getElementById('q').value.trim();
-  const items=DATA.listings.filter(l=>(activeCat==='الكل'||l.category===activeCat)&&(!q||(l.name+l.address+l.products+l.phone).includes(q)));
-  const el=document.getElementById('list');
-  if(!items.length){el.innerHTML='<p class="empty">مفيش نتايج مطابقة — جرّب كلمة تانية أو أضف المحل من تحت.</p>';return;}
-  el.innerHTML=items.map(l=>`<div class="card">
-    <h3>${l.name} ${l.example?'<span class="badge">مثال تجريبي</span>':''}</h3>
-    <div class="cat">${l.category}</div>
-    <div class="meta">📍 ${l.address}</div>
-    ${l.products?`<div class="meta">🛒 ${l.products}</div>`:''}
-    <div class="actions"><span class="btn btn-ghost" style="flex:none;width:100%">📞 ${l.phone}</span></div>
-  </div>`).join('');
+function renderShops(){
+  const q=document.getElementById('searchInput').value.trim();
+  const list=SHOPS.filter(s=>(activeCat==='الكل'||s.category===activeCat)&&(!q||s.name.includes(q)||(s.desc||'').includes(q)));
+  const el=document.getElementById('shopsList');
+  if(!list.length){el.innerHTML='<div class="empty-msg">مفيش نتائج مطابقة للبحث.</div>';return;}
+  el.innerHTML=list.map(s=>postCard({
+    id:'shop-'+s.id, title:s.name, sub:s.category+' · الخشاشنه والمرساه',
+    text:(s.desc||'')+'\n📞 '+s.phone,
+    demo:true, baseLikes:s.baseLikes||0, comments:0, shares:0
+  })).join('');
+  bindActions(el);
 }
+document.getElementById('searchInput').addEventListener('input',renderShops);
+
+/* ---------- News ---------- */
 function renderNews(){
-  document.getElementById('news').innerHTML=DATA.newsSources.map(s=>`<a class="card news-card" href="${s.url}" target="_blank" rel="noopener">
-    <span class="ic">${s.kind==='facebook_group'?'👥':'📘'}</span>
-    <span><h3>${s.name}</h3><p>${s.desc}</p></span><span class="go">‹</span>
-  </a>`).join('');
+  fetch('data.json').then(r=>r.json()).then(data=>{
+    SHOPS=data.shops||[];
+    renderChips(data.categories||[]);
+    renderShops();
+    const news=(data.news||[]).map(n=>postCard(n));
+    document.getElementById('newsList').innerHTML=news.join('')||'<div class="empty-msg">مفيش أخبار لسه.</div>';
+    document.getElementById('homeNews').innerHTML=news.slice(0,2).join('');
+    bindActions(document.getElementById('newsList'));
+    bindActions(document.getElementById('homeNews'));
+  }).catch(()=>{
+    document.getElementById('newsList').innerHTML='<div class="empty-msg">حصل خطأ في تحميل البيانات. جرّب تاني.</div>';
+  });
 }
-if('serviceWorker' in navigator){navigator.serviceWorker.register('sw.js').catch(()=>{});}
+
+/* ---------- Like / Share ---------- */
+function bindActions(root){
+  root.querySelectorAll('.like-btn').forEach(btn=>{
+    btn.onclick=()=>{
+      const id=btn.dataset.id;
+      const likes=getLikes();
+      if(likes[id])delete likes[id];else likes[id]=true;
+      setLikes(likes);
+      btn.classList.toggle('liked',!!likes[id]);
+      const cnt=btn.closest('.card').querySelector('.like-count');
+      if(cnt){
+        const base=parseInt((cnt.textContent.match(/👍 (\d+)/)||[0,0])[1])+(likes[id]?1:-1);
+        cnt.textContent='👍 '+base;
+      }
+    };
+  });
+  root.querySelectorAll('.share-btn').forEach(btn=>{
+    btn.onclick=async()=>{
+      const title=decodeURIComponent(btn.dataset.title);
+      const url=decodeURIComponent(btn.dataset.url);
+      const payload={title:'دليل بلدي - '+title,text:title+' — عبر تطبيق دليل بلدي',url};
+      if(navigator.share){
+        try{await navigator.share(payload);}catch(e){/* ألغى المستخدم */}
+      }else{
+        try{await navigator.clipboard.writeText(url);btn.querySelector('span').textContent='تم النسخ ✓';setTimeout(()=>btn.querySelector('span').textContent='مشاركة',1500);}catch(e){}
+      }
+    };
+  });
+}
+
+/* ---------- Install prompt ---------- */
+let deferredPrompt=null;
+const installBtn=document.getElementById('installBtn');
+function openInstallModal(){document.getElementById('installModal').classList.add('show');}
+document.getElementById('installModalClose').onclick=()=>document.getElementById('installModal').classList.remove('show');
+window.addEventListener('beforeinstallprompt',e=>{
+  e.preventDefault();
+  deferredPrompt=e;
+});
+async function doInstall(){
+  if(deferredPrompt){
+    deferredPrompt.prompt();
+    await deferredPrompt.userChoice;
+    deferredPrompt=null;
+  }else{
+    openInstallModal();
+  }
+}
+installBtn.addEventListener('click',doInstall);
+document.getElementById('installTopBtn').addEventListener('click',doInstall);
+window.addEventListener('appinstalled',()=>{
+  document.getElementById('installCard').style.display='none';
+});
+
+/* ---------- Service worker ---------- */
+if('serviceWorker' in navigator){
+  navigator.serviceWorker.register('sw.js');
+}
+
+renderNews();
 </script>
 </body>
 </html>
