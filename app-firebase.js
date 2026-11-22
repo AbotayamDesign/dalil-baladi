@@ -61,8 +61,8 @@ function renderOverlay(){
   const homeEl = document.getElementById('homeNews');
   const newsItems = [...fsNews.values()].sort((a,b)=>((b.createdAt&&b.createdAt.seconds)||0)-((a.createdAt&&a.createdAt.seconds)||0));
   const newsHTML = newsItems.map(n=>postCard({
-    id:'news-'+n.fsId, title:n.title||'', sub:(n.sub||'')+(n.date?' · '+n.date:''),
-    headline:n.headline||'', text:n.text||'', url:n.url||'', demo:false
+    id:n.itemId||('news-'+n.fsId), title:n.sourceTitle||'دليل بلدي', sub:(n.sub||'')+(n.date?' · '+n.date:''),
+    headline:n.title||'', text:n.text||'', url:n.url||'', demo:false
   }).replace('article class="card"','article class="card fs-card"')).join('');
   if(newsEl) newsEl.insertAdjacentHTML('afterbegin', newsHTML);
   if(homeEl) homeEl.insertAdjacentHTML('afterbegin', newsHTML);
@@ -344,7 +344,7 @@ function initAdmin(){
       date: el('date'), url: el('url'),
       published: true, notified: !!editing,
       createdAt: firebase.firestore.FieldValue.serverTimestamp()
-    });
+    }, {merge:true});
     f.reset(); delete f.dataset.editId; f.querySelector('button[type=submit]').textContent = 'نشر'; f.querySelector('.ok').textContent = 'اتحفظ ✓';
     setTimeout(()=>f.querySelector('.ok').textContent='', 3000);
   });
@@ -360,7 +360,7 @@ function initAdmin(){
       whatsapp: el('whatsapp'), map: el('map'),
       published: true, notified: !!editing,
       createdAt: firebase.firestore.FieldValue.serverTimestamp()
-    });
+    }, {merge:true});
     f.reset(); delete f.dataset.editId; f.querySelector('button[type=submit]').textContent = 'نشر'; f.querySelector('.ok').textContent = 'اتحفظ ✓';
     setTimeout(()=>f.querySelector('.ok').textContent='', 3000);
   });
