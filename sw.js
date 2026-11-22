@@ -1,5 +1,5 @@
 importScripts('./firebase-messaging-sw.js');
-const CACHE_NAME='dalil-baladi-v25';
+const CACHE_NAME='dalil-baladi-v26';
 self.skipWaiting();
 self.addEventListener('message', e=>{
  if(e.data==='DALIL_VERSION' && e.ports[0])e.ports[0].postMessage(CACHE_NAME);
