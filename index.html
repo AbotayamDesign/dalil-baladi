@@ -6,6 +6,8 @@
 <meta name="theme-color" content="#1877f2">
 <title>دليل بلدي - الخشاشنه والمرساه</title>
 <meta name="description" content="دليل محلات وأخبار قرية الخشاشنه والمرساه - مركز دكرنس، الدقهلية">
+<link rel="preconnect" href="https://www.gstatic.com" crossorigin>
+<link rel="preconnect" href="https://firestore.googleapis.com" crossorigin>
 <link rel="manifest" href="manifest.webmanifest">
 <link rel="icon" href="icon.svg" type="image/svg+xml">
 <link rel="apple-touch-icon" href="icon-192.png">
@@ -188,6 +190,7 @@
     <p>ثبّت «دليل بلدي» على موبايلك عشان يفتح معاك بضغطة واحدة من الشاشة الرئيسية، زي أي تطبيق.</p>
     <button class="install-btn" id="installBtn">تثبيت</button>
   </div>
+  <p class="card" id="feedStatus" role="status" style="padding:14px">جاري تحميل الأخبار...</p>
   <div id="homeNews"></div>
 </div>
 
@@ -356,20 +359,40 @@ function renderShops(){
 document.getElementById('searchInput').addEventListener('input',renderShops);
 
 /* ---------- News ---------- */
+const PUBLIC_FEED_KEY='dalil_public_feed_v1';
+function publicFeedRead(){try{const c=JSON.parse(localStorage.getItem(PUBLIC_FEED_KEY));if(c?.v===1&&Array.isArray(c.news)&&Array.isArray(c.shops)&&Date.now()-c.at<7*86400000)return c;}catch(e){}return {v:1,at:0,news:[],shops:[]};}
+window.dalilCachedFeed=publicFeedRead();
+function renderCachedFeed(){
+ const c=window.dalilCachedFeed;
+ if(!c.news.length&&!c.shops.length)return;
+ const html=c.news.map(n=>postCard({id:n.itemId||('news-'+n.fsId),title:n.sourceTitle||'دليل بلدي',sub:(n.sub||'')+(n.date?' · '+n.date:''),headline:n.title||'',text:n.text||'',url:n.url||'',srcNote:n.srcNote||'',imageData:n.imageData||'',demo:false}).replace('article class="card"','article class="card fs-card"')).join('');
+ document.getElementById('homeNews').innerHTML=html;
+ document.getElementById('newsList').innerHTML=html;
+ document.getElementById('feedStatus').textContent='آخر أخبار محفوظة على الجهاز؛ جاري التحديث...';
+ bindActions(document.getElementById('homeNews'));bindActions(document.getElementById('newsList'));
+ performance.mark('dalil-cached-feed-painted');
+}
 function renderNews(){
-  fetch('data.json').then(r=>r.json()).then(data=>{
+ renderCachedFeed();
+ fetch('data.json').then(r=>{if(!r.ok)throw Error('data unavailable');return r.json();}).then(data=>{
     SHOPS=data.shops||[];
     renderChips(data.categories||[]);
     renderShops();
     const news=(data.news||[]).map(n=>postCard(n));
-    document.getElementById('newsList').innerHTML=news.join('')||'<div class="empty-msg">مفيش أخبار لسه.</div>';
-    document.getElementById('homeNews').innerHTML=news.join('')+SHOPS.map(shopCardHTML).join('');
+    // Keep cached/live cards while static metadata loads, then merge explicitly.
+    if(news.length){
+     document.querySelectorAll('#newsList > :not(.fs-card),#homeNews > :not(.fs-card)').forEach(n=>n.remove());
+     document.getElementById('newsList').insertAdjacentHTML('beforeend',news.join(''));
+     document.getElementById('homeNews').insertAdjacentHTML('beforeend',news.join('')+SHOPS.map(shopCardHTML).join(''));
+    }
     bindActions(document.getElementById('newsList'));
     bindActions(document.getElementById('homeNews'));
+    window.dispatchEvent(new Event('dalil:static-ready'));
   }).catch(()=>{
-    document.getElementById('newsList').innerHTML='<div class="empty-msg">حصل خطأ في تحميل البيانات. جرّب تاني.</div>';
+    const status=document.getElementById('feedStatus');if(!document.querySelector('#homeNews article'))status.textContent='تحميل الأخبار لم يكتمل بعد. تأكد من اتصال الإنترنت.';
   });
 }
+window.addEventListener('offline',()=>{document.getElementById('feedStatus').hidden=false;document.getElementById('feedStatus').textContent='أنت غير متصل. المعروض آخر أخبار محفوظة على الجهاز إن وُجدت.';});
 
 /* ---------- Like / Share ---------- */
 function bindActions(root){
@@ -502,6 +525,6 @@ renderNews();
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-messaging-compat.js"></script>
-<script src="app-firebase.js?v=19"></script>
+<script src="app-firebase.js?v=20"></script>
 </body>
 </html>
