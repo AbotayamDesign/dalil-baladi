@@ -96,6 +96,9 @@ function watchContent(){
    Firestore cards carry .fs-card and are rebuilt on every snapshot. */
 function renderOverlay(){
   document.querySelectorAll('.fs-card').forEach(el=>el.remove());
+  // A stale static response must never duplicate a known live item.
+  const liveIds=new Set([...fsNews.values()].map(n=>n.itemId||('news-'+n.fsId)));
+  document.querySelectorAll('#homeNews > article,#newsList > article').forEach(el=>{const id=el.querySelector('.like-btn')?.dataset.id;if(id&&liveIds.has(id))el.remove();});
   // NEWS
   const newsEl = document.getElementById('newsList');
   const homeEl = document.getElementById('homeNews');
