@@ -57,6 +57,9 @@
   .post-head .sub{font-size:13px;color:var(--secondary)}
   .badge-demo{display:inline-block;background:#fff3cd;color:#8a6d00;font-size:11px;font-weight:700;
     border-radius:4px;padding:1px 6px;margin-inline-start:6px;vertical-align:middle}
+  .shop-contacts{display:flex;flex-wrap:wrap;gap:8px;align-items:center;padding:6px 16px 2px;font-size:14px}
+  .shop-contacts .shop-num{font-weight:700}
+  .shop-contacts .shop-icon{border:1px solid var(--divider);border-radius:16px;padding:5px 12px;color:var(--fb-blue);font-weight:700;font-size:13.5px;text-decoration:none}
   .post-text{font-size:15px;margin:4px 0 8px;white-space:pre-wrap;word-wrap:break-word}
   .post-text .src-note{display:block;font-size:12.5px;color:var(--secondary);margin-top:6px}
   .source-link{display:inline-flex;align-items:center;gap:5px;font-size:13.5px;font-weight:600;margin-bottom:6px}
@@ -113,6 +116,9 @@
   .empty-msg{text-align:center;color:var(--secondary);padding:30px 20px;font-size:14px}
 
   /* ===== Push & comments & admin ===== */
+  #pushBell{font-size:19px;line-height:1}
+  #pushBell.push-on{color:var(--fb-blue);position:relative}
+  #pushBell.push-on::after{content:'';position:absolute;top:6px;inset-inline-end:6px;width:8px;height:8px;background:#31a24c;border-radius:50%;border:2px solid var(--card)}
   .push-card{background:var(--card);margin:8px 12px;border-radius:12px;padding:12px 16px;border:1px solid var(--divider);display:flex;align-items:center;gap:10px}
   @media(min-width:560px){.push-card{margin:12px auto;max-width:504px}}
   .push-card button{background:var(--fb-blue);color:#fff;border-radius:8px;padding:8px 14px;font-weight:700;font-size:14px}
@@ -147,6 +153,7 @@
   <button class="icon-btn" id="searchTopBtn" aria-label="بحث">
     <svg viewBox="0 0 24 24"><path d="M15.5 14h-.79l-.28-.27a6.5 6.5 0 1 0-.7.7l.27.28v.79l5 4.99L20.49 19l-4.99-5zm-6 0A4.5 4.5 0 1 1 14 9.5 4.5 4.5 0 0 1 9.5 14z"/></svg>
   </button>
+  <button class="icon-btn" id="pushBell" aria-label="فعّل الإشعارات" title="الإشعارات">🔔</button>
   <button class="icon-btn" id="installTopBtn" aria-label="تثبيت التطبيق">
     <svg viewBox="0 0 24 24"><path d="M19 12v7H5v-7H3v7c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2v-7h-2zm-6 .67l2.59-2.58L17 11.5l-5 5-5-5 1.41-1.41L11 12.67V3h2z"/></svg>
   </button>
@@ -173,14 +180,10 @@
     <h2>أهلًا بيك في دليل بلدي 👋</h2>
     <p>دليل محلات وأخبار قرية الخشاشنه والمرساه — مركز دكرنس، محافظة الدقهلية. نسخة أولى للتجربة.</p>
   </div>
-  <div class="push-card">
-    <div class="hint">فعّل الإشعارات عشان يوصلك جديد أخبار ومحلات البلد أول بأول.</div>
-    <button id="pushBtn" data-state="off"><span class="push-icon">🔔</span> فعّل الإشعارات</button>
-  </div>
   <div class="install-card" id="installCard">
-    <h3>⬇️ تثبيت التطبيق (تحت الاختبار)</h3>
-    <p>خاصية التثبيت المباشر لسه تحت التجربة ومش متأكدة على كل الأجهزة. لو ضغطت وظهرلك تأكيد تثبيت يبقى نجحت؛ لو مظهرش، هتظهرلك خطوات الإضافة اليدوية للشاشة الرئيسية.</p>
-    <button class="install-btn" id="installBtn">تجربة التثبيت</button>
+    <h3>⬇️ تثبيت التطبيق</h3>
+    <p>ثبّت «دليل بلدي» على موبايلك عشان يفتح معاك بضغطة واحدة من الشاشة الرئيسية، زي أي تطبيق.</p>
+    <button class="install-btn" id="installBtn">تثبيت</button>
   </div>
   <div id="homeNews"></div>
 </div>
@@ -212,8 +215,7 @@
 </div>
 
 <div class="footer-note">
-  دليل بلدي — نسخة تجريبية • مش تابع لفيسبوك بأي شكل<br>
-  الإعجابات والتعليقات مشتركة بين كل المستخدمين • التعليقات بتتنشر بعد مراجعة الإدارة<br>
+  دليل بلدي • إدارة وتصميم محمود السعيد<br>
   <a href="#" class="admin-entry" id="adminEntry" onclick="return false">دخول الإدارة</a>
 </div>
 
@@ -264,10 +266,10 @@ function actionBar(item){
   return `
   <div class="actions">
     <button class="action like-btn ${liked?'liked':''}" data-id="${item.id}">${LIKE_SVG}<span>${liked?'أعجبك':'أعجبني'}</span></button>
-    <button class="action disabled">${COMMENT_SVG}<span>تعليق (قريبًا)</span></button>
+    <button class="action comment-btn" data-id="${item.id}">${COMMENT_SVG}<span>تعليق</span></button>
     <button class="action share-btn" data-id="${item.id}" data-title="${encodeURIComponent(item.title)}" data-url="${encodeURIComponent(item.url||location.href)}">${SHARE_SVG}<span>مشاركة</span></button>
   </div>
-  <div class="local-note">إعجابك بيتحفظ على جهازك بس ومبيظهرش لحد غيرك — مفيش أعداد إعجابات حقيقية لسه</div>`;
+`;
 }
 
 function postCard(item,opts){
@@ -285,6 +287,7 @@ function postCard(item,opts){
       </div>
     </div>
     <div class="post-text">${headline}${item.text}${srcNote}</div>
+    ${item.contacts||''}
     ${link}
     ${actionBar(item)}
   </article>`;
@@ -304,10 +307,32 @@ function renderChips(cats){
     el.appendChild(b);
   });
 }
+/* Real contact numbers only: demo placeholders like 01xxxxxxxxx get no call/WhatsApp icons. */
+function realPhone(p){ return p && p.indexOf('x')===-1 && /^[+\d][\d\s-]{6,}$/.test(p.trim()) ? p.trim() : null; }
+function waNumber(p){
+  let n=p.replace(/\D/g,'');
+  if(n.indexOf('00')===0) n=n.slice(2);
+  else if(n.indexOf('0')===0) n='20'+n.slice(1);
+  else if(n.length===10 && n.indexOf('1')===0) n='20'+n;
+  return n;
+}
+function shopContactsHTML(s){
+  const tel=realPhone(s.phone||'');
+  const wa=realPhone(s.whatsapp||'')||tel;
+  const map=(s.map||'').trim();
+  if(!tel && !wa && !map) return '';
+  let h='<div class="shop-contacts">';
+  if(tel) h+='<span class="shop-num">📞 '+tel+'</span>';
+  if(tel) h+='<a class="shop-icon" href="tel:'+tel.replace(/[\s-]/g,'')+'" aria-label="اتصال">📞 اتصال</a>';
+  if(wa) h+='<a class="shop-icon" href="https://wa.me/'+waNumber(wa)+'?text='+encodeURIComponent('السلام عليكم، شفت محلكم على تطبيق دليل بلدي')+'" target="_blank" rel="noopener" aria-label="واتساب">💬 واتساب</a>';
+  if(map) h+='<a class="shop-icon" href="'+map.replace(/"/g,'')+'" target="_blank" rel="noopener" aria-label="الموقع">📍 الموقع</a>';
+  return h+'</div>';
+}
 function shopCardHTML(s){
   return postCard({
     id:'shop-'+s.id, title:s.name, sub:s.category+' · الخشاشنه والمرساه',
-    text:(s.desc||'')+'\n📞 '+s.phone,
+    text:(s.desc||''),
+    contacts:shopContactsHTML(s),
     demo:true
   });
 }
@@ -384,9 +409,17 @@ async function doInstall(){
 }
 installBtn.addEventListener('click',doInstall);
 document.getElementById('installTopBtn').addEventListener('click',doInstall);
-window.addEventListener('appinstalled',()=>{
-  document.getElementById('installCard').style.display='none';
-});
+function isAppInstalled(){
+  return window.matchMedia('(display-mode: standalone)').matches
+    || window.matchMedia('(display-mode: fullscreen)').matches
+    || navigator.standalone===true;
+}
+function hideInstallUI(){
+  const c=document.getElementById('installCard'); if(c)c.style.display='none';
+  const t=document.getElementById('installTopBtn'); if(t)t.style.display='none';
+}
+if(isAppInstalled()) hideInstallUI();
+window.addEventListener('appinstalled',hideInstallUI);
 
 /* ---------- Service worker ---------- */
 if('serviceWorker' in navigator){
@@ -427,10 +460,12 @@ renderNews();
         <input type="text" name="name" maxlength="80" placeholder="اسم المحل" required>
         <input type="text" name="category" maxlength="40" placeholder="التصنيف (مثال: سوبر ماركت)" required>
         <textarea name="desc" maxlength="1000" placeholder="وصف مختصر"></textarea>
-        <input type="tel" name="phone" maxlength="20" placeholder="التليفون (اختياري)">
+        <input type="tel" name="phone" maxlength="20" placeholder="تليفون الاتصال (اختياري)">
+        <input type="tel" name="whatsapp" maxlength="20" placeholder="رقم الواتساب لو مختلف (اختياري)">
+        <input type="url" name="map" maxlength="300" placeholder="رابط الموقع على الخريطة (اختياري)">
         <button class="primary" type="submit">نشر المحل</button><span class="ok"></span>
       </form>
-      <div class="admin-sec">💬 تعليقات بانتظار المراجعة</div>
+      <div class="admin-sec">💬 أحدث التعليقات (احذف المسيء منها)</div>
       <div id="pendingComments"></div>
       <div class="admin-sec">🗂️ إدارة الأخبار المنشورة</div>
       <div id="manageNews"></div>
