@@ -116,7 +116,7 @@
   .empty-msg{text-align:center;color:var(--secondary);padding:30px 20px;font-size:14px}
 
   /* ===== Push & comments & admin ===== */
-  #pushBell{font-size:19px;line-height:1}
+  #pushBell{font-size:18px;line-height:1;min-width:54px;width:54px;height:44px;border-radius:10px;flex-direction:column;gap:3px} #pushBell small{font-size:9px;white-space:nowrap;font-weight:700} #pushBell.push-on{background:#fff}
   #pushBell.push-on{color:var(--fb-blue);position:relative}
   #pushBell.push-on::after{content:'';position:absolute;top:6px;inset-inline-end:6px;width:8px;height:8px;background:#31a24c;border-radius:50%;border:2px solid var(--card)}
   .push-card{background:var(--card);margin:8px 12px;border-radius:12px;padding:12px 16px;border:1px solid var(--divider);display:flex;align-items:center;gap:10px}
@@ -153,7 +153,7 @@
   <button class="icon-btn" id="searchTopBtn" aria-label="بحث">
     <svg viewBox="0 0 24 24"><path d="M15.5 14h-.79l-.28-.27a6.5 6.5 0 1 0-.7.7l.27.28v.79l5 4.99L20.49 19l-4.99-5zm-6 0A4.5 4.5 0 1 1 14 9.5 4.5 4.5 0 0 1 9.5 14z"/></svg>
   </button>
-  <button class="icon-btn" id="pushBell" aria-label="فعّل الإشعارات" title="الإشعارات">🔔</button>
+  <button class="icon-btn" id="pushBell" aria-label="فعّل الإشعارات" title="الإشعارات"><span>🔔</span><small>جارٍ الفحص</small></button>
   <button class="icon-btn" id="installTopBtn" aria-label="تثبيت التطبيق">
     <svg viewBox="0 0 24 24"><path d="M19 12v7H5v-7H3v7c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2v-7h-2zm-6 .67l2.59-2.58L17 11.5l-5 5-5-5 1.41-1.41L11 12.67V3h2z"/></svg>
   </button>
@@ -217,6 +217,7 @@
 <div class="footer-note">
   دليل بلدي • إدارة وتصميم محمود السعيد<br>
   <a href="#" class="admin-entry" id="adminEntry" onclick="return false">دخول الإدارة</a>
+  <button type="button" id="pushDiagnosticOpen" style="background:none;color:var(--secondary);text-decoration:underline;margin:0 10px;font-size:12px">فحص الإشعارات</button>
 </div>
 
 <!-- Install instructions modal -->
@@ -272,21 +273,24 @@ function actionBar(item){
 `;
 }
 
+function safeText(value){return String(value==null?'':value).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));}
+function safeWebURL(value){return /^https?:\/\//i.test(String(value||''))?safeText(value):'';}
 function postCard(item,opts){
   opts=opts||{};
   const demo=item.demo?'<span class="badge-demo">مثال تجريبي</span>':'';
-  const link=item.url?`<a class="source-link" href="${item.url}" target="_blank" rel="noopener">${LINK_SVG}${opts.linkLabel||'المصدر على فيسبوك'}</a>`:'';
-  const srcNote=item.srcNote?`<span class="src-note">${item.srcNote}</span>`:'';
-  const headline=item.headline?`<b style="display:block;margin-bottom:3px">${item.headline}</b>`:'';
+  const link=safeWebURL(item.url)?`<a class="source-link" href="${safeWebURL(item.url)}" target="_blank" rel="noopener">${LINK_SVG}${opts.linkLabel||'المصدر على فيسبوك'}</a>`:'';
+  const srcNote=item.srcNote?`<span class="src-note">${safeText(item.srcNote)}</span>`:'';
+  const headline=item.headline?`<b style="display:block;margin-bottom:3px">${safeText(item.headline)}</b>`:'';
   return `<article class="card">
     <div class="post-head">
       <div class="avatar" style="background:${avatarColor(item.title)}">${initialOf(item.title)}</div>
       <div class="who">
-        <div class="name">${item.title}${demo}</div>
-        <div class="sub">${item.sub||''}</div>
+        <div class="name">${safeText(item.title)}${demo}</div>
+        <div class="sub">${safeText(item.sub||'')}</div>
       </div>
     </div>
-    <div class="post-text">${headline}${item.text}${srcNote}</div>
+    <div class="post-text">${headline}${safeText(item.text)}${srcNote}</div>
+    ${/^data:image\/jpeg;base64,[A-Za-z0-9+/=]+$/.test(item.imageData||'')?`<img class="post-photo" src="${item.imageData}" alt="صورة مرفقة بالمنشور" loading="lazy" style="display:block;width:100%;max-height:520px;object-fit:contain;background:#f0f2f5">`:''}
     ${item.contacts||''}
     ${link}
     ${actionBar(item)}
@@ -318,8 +322,8 @@ function waNumber(p){
 }
 function shopContactsHTML(s){
   const tel=realPhone(s.phone||'');
-  const wa=realPhone(s.whatsapp||'')||tel;
-  const map=(s.map||'').trim();
+  const wa=realPhone(s.whatsapp||'');
+  const map=safeWebURL((s.map||'').trim());
   if(!tel && !wa && !map) return '';
   let h='<div class="shop-contacts">';
   if(tel) h+='<span class="shop-num">📞 '+tel+'</span>';
@@ -425,6 +429,15 @@ if('serviceWorker' in navigator){
 renderNews();
 </script>
 
+<div class="modal-bg" id="pushDiagnosticModal"><div class="modal">
+<h3>فحص الإشعارات على هذا الجهاز</h3>
+<pre id="pushDiagnosticText" style="white-space:pre-wrap;font-family:inherit;font-size:14px;line-height:1.9"></pre>
+<p style="font-size:13px">الاختبار المحلي يفحص عرض الإشعار من هذا الهاتف فقط، وليس وصول إشعار من الإدارة.</p>
+<button class="close" id="pushLocalTest">اختبار عرض محلي</button>
+<p id="pushLocalResult" style="font-size:13px"></p>
+<button class="close" id="pushDiagnosticClose">إغلاق</button>
+</div></div>
+
 <!-- ===== Admin modal ===== -->
 <div class="modal-bg" id="adminModal">
   <div class="modal">
@@ -446,9 +459,12 @@ renderNews();
       <div class="admin-sec">📰 نشر خبر جديد</div>
       <form id="publishNews">
         <input type="text" name="title" maxlength="120" placeholder="عنوان الخبر" required>
-        <textarea name="text" maxlength="2000" placeholder="نص الخبر" required></textarea>
+        <textarea name="text" maxlength="2000" placeholder="نص الخبر (اختياري مع صورة)"></textarea>
         <input type="text" name="date" maxlength="40" placeholder="التاريخ (مثال: 22 نوفمبر 2026)">
         <input type="url" name="url" placeholder="رابط المصدر (اختياري)">
+        <label style="display:block;font-size:13px;margin:8px 0">صورة اختيارية (JPG أو PNG أو WebP، يتم ضغطها)
+        <input type="file" name="photo" accept="image/jpeg,image/png,image/webp" aria-label="اختيار صورة"></label>
+        <label style="display:block;font-size:13px"><input type="checkbox" name="removePhoto" style="width:auto"> حذف الصورة الحالية عند التعديل</label>
         <button class="primary" type="submit">نشر الخبر</button><span class="ok"></span>
       </form>
       <div class="admin-sec">🏪 إضافة محل جديد</div>
@@ -459,6 +475,9 @@ renderNews();
         <input type="tel" name="phone" maxlength="20" placeholder="تليفون الاتصال (اختياري)">
         <input type="tel" name="whatsapp" maxlength="20" placeholder="رقم الواتساب لو مختلف (اختياري)">
         <input type="url" name="map" maxlength="300" placeholder="رابط الموقع على الخريطة (اختياري)">
+        <label style="display:block;font-size:13px;margin:8px 0">صورة اختيارية (JPG أو PNG أو WebP، يتم ضغطها)
+        <input type="file" name="photo" accept="image/jpeg,image/png,image/webp" aria-label="اختيار صورة"></label>
+        <label style="display:block;font-size:13px"><input type="checkbox" name="removePhoto" style="width:auto"> حذف الصورة الحالية عند التعديل</label>
         <button class="primary" type="submit">نشر المحل</button><span class="ok"></span>
       </form>
       <div class="admin-sec">💬 أحدث التعليقات (احذف المسيء منها)</div>
@@ -475,6 +494,6 @@ renderNews();
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-messaging-compat.js"></script>
-<script src="app-firebase.js?v=10"></script>
+<script src="app-firebase.js?v=13"></script>
 </body>
 </html>
