@@ -26,49 +26,95 @@ jobs:
         with:
           node-version: '20'
 
-      - run: npm install firebase-admin@12 --no-fund --no-audit
+      - run: npm install google-auth-library@9 --no-fund --no-audit
 
       - name: Send notifications for new published items
         env:
           GCP_PROJECT_ID: dalil-baladi
         run: |
           node <<'EOF'
-          const admin = require('firebase-admin');
-          admin.initializeApp({ projectId: process.env.GCP_PROJECT_ID });
-          const db = admin.firestore();
+          // firebase-admin cannot parse WIF external_account credentials, so use
+          // google-auth-library for the token and plain REST for Firestore + FCM.
+          const { GoogleAuth } = require('google-auth-library');
+          const PROJECT = process.env.GCP_PROJECT_ID;
+          const FS = `https://firestore.googleapis.com/v1/projects/${PROJECT}/databases/(default)/documents`;
+          const FCM = `https://fcm.googleapis.com/v1/projects/${PROJECT}/messages:send`;
 
-          async function notifyCollection(coll, itemType) {
-            const snap = await db.collection(coll)
-              .where('published', '==', true)
-              .where('notified', '==', false)
-              .get();
-            if (snap.empty) { console.log(coll + ': nothing new'); return; }
+          async function main() {
+            const auth = new GoogleAuth({ scopes: [
+              'https://www.googleapis.com/auth/datastore',
+              'https://www.googleapis.com/auth/firebase.messaging'
+            ] });
+            const client = await auth.getClient();
+            const { token } = await client.getAccessToken();
+            const H = { Authorization: 'Bearer ' + token, 'Content-Type': 'application/json' };
 
-            const tokensSnap = await db.collection('pushTokens').get();
-            const tokens = tokensSnap.docs.map(d => d.id).filter(Boolean);
-            if (tokens.length === 0) { console.log('no subscribers; marking notified anyway=false, skipping'); return; }
-
-            for (const doc of snap.docs) {
-              const d = doc.data();
-              const title = itemType === 'shop' ? 'محل جديد: ' + (d.title || '') : 'خبر جديد';
-              const body = (d.title || '') + (d.date ? ' - ' + d.date : '');
-              const res = await admin.messaging().sendEachForMulticast({
-                tokens,
-                data: { title, body, itemId: doc.id, itemType }
+            async function runQuery(coll) {
+              const res = await fetch(`${FS}:runQuery`, { method: 'POST', headers: H, body: JSON.stringify({
+                structuredQuery: {
+                  from: [{ collectionId: coll }],
+                  where: { compositeFilter: { op: 'AND', filters: [
+                    { fieldFilter: { field: { fieldPath: 'published' }, op: 'EQUAL', value: { booleanValue: true } } },
+                    { fieldFilter: { field: { fieldPath: 'notified' }, op: 'EQUAL', value: { booleanValue: false } } }
+                  ] } }
+                }
+              })});
+              if (!res.ok) throw new Error('runQuery ' + coll + ' ' + res.status + ' ' + (await res.text()).slice(0, 200));
+              const rows = await res.json();
+              return rows.filter(r => r.document).map(r => r.document);
+            }
+            async function listTokens() {
+              const res = await fetch(`${FS}/pushTokens?pageSize=1000`, { headers: H });
+              if (!res.ok) throw new Error('listTokens ' + res.status);
+              const j = await res.json();
+              return (j.documents || []).map(d => d.name.split('/').pop());
+            }
+            async function markNotified(coll, id) {
+              const res = await fetch(`${FS}/${coll}/${encodeURIComponent(id)}?updateMask.fieldPaths=notified&updateMask.fieldPaths=notifiedAt`, {
+                method: 'PATCH', headers: H,
+                body: JSON.stringify({ fields: { notified: { booleanValue: true }, notifiedAt: { timestampValue: new Date().toISOString() } } })
               });
-              // prune dead tokens
-              const dead = [];
-              res.responses.forEach((r, i) => {
-                if (!r.success && r.error && /registration-token-not-registered/.test(r.error.code)) dead.push(tokens[i]);
-              });
-              await Promise.all(dead.map(t => db.collection('pushTokens').doc(t).delete().catch(() => {})));
-              await doc.ref.update({ notified: true, notifiedAt: admin.firestore.FieldValue.serverTimestamp() });
-              console.log(coll + '/' + doc.id + ': sent to ' + res.successCount + '/' + tokens.length);
+              if (!res.ok) console.error('markNotified failed', coll, id, res.status);
+            }
+            async function deleteToken(t) {
+              await fetch(`${FS}/pushTokens/${encodeURIComponent(t)}`, { method: 'DELETE', headers: H }).catch(() => {});
+            }
+            async function send(token, title, body, itemId, itemType) {
+              const res = await fetch(FCM, { method: 'POST', headers: H, body: JSON.stringify({
+                message: { token, data: { title, body, itemId, itemType } }
+              })});
+              if (res.ok) return 'ok';
+              const j = await res.json().catch(() => ({}));
+              const code = j.error && j.error.details && JSON.stringify(j.error.details) || '';
+              if (/NOT_FOUND|UNREGISTERED/.test(code)) return 'dead';
+              console.error('send failed', res.status, (j.error && j.error.message || '').slice(0, 120));
+              return 'fail';
+            }
+
+            const docs = [
+              ...(await runQuery('news')).map(d => ({ coll: 'news', d })),
+              ...(await runQuery('shops')).map(d => ({ coll: 'shops', d }))
+            ];
+            if (!docs.length) { console.log('nothing new'); return; }
+            const tokens = await listTokens();
+            if (!tokens.length) { console.log('no subscribers yet; leaving notified=false'); return; }
+
+            for (const { coll, d } of docs) {
+              const f = d.fields || {};
+              const txt = v => (v && v.stringValue) || '';
+              const isShop = coll === 'shops';
+              const title = isShop ? ('محل جديد: ' + txt(f.name)) : 'خبر جديد';
+              const body = isShop ? txt(f.category) : (txt(f.title) + (txt(f.date) ? ' - ' + txt(f.date) : ''));
+              const id = d.name.split('/').pop();
+              let ok = 0;
+              for (const t of tokens) {
+                const r = await send(t, title, body, id, isShop ? 'shop' : 'news');
+                if (r === 'ok') ok++;
+                else if (r === 'dead') await deleteToken(t);
+              }
+              await markNotified(coll, id);
+              console.log(`${coll}/${id}: sent to ${ok}/${tokens.length}`);
             }
           }
-
-          (async () => {
-            await notifyCollection('news', 'news');
-            await notifyCollection('shops', 'shop');
-          })().catch(e => { console.error(e); process.exit(1); });
+          main().catch(e => { console.error(e.message || e); process.exit(1); });
           EOF
