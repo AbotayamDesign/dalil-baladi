@@ -116,6 +116,7 @@
   .empty-msg{text-align:center;color:var(--secondary);padding:30px 20px;font-size:14px}
 
   /* ===== Push & comments & admin ===== */
+  #unreadNews{min-width:22px;height:22px;border-radius:12px;padding:0 5px;background:#e42645;color:#fff;font-size:12px;font-weight:700;align-self:flex-start;margin-top:1px} #unreadNews[hidden]{display:none}
   #pushBell{font-size:18px;line-height:1;min-width:54px;width:54px;height:44px;border-radius:10px;flex-direction:column;gap:3px} #pushBell small{font-size:9px;white-space:nowrap;font-weight:700} #pushBell.push-on{background:#fff}
   #pushBell.push-on{color:var(--fb-blue);position:relative}
   #pushBell.push-on::after{content:'';position:absolute;top:6px;inset-inline-end:6px;width:8px;height:8px;background:#31a24c;border-radius:50%;border:2px solid var(--card)}
@@ -153,6 +154,7 @@
   <button class="icon-btn" id="searchTopBtn" aria-label="بحث">
     <svg viewBox="0 0 24 24"><path d="M15.5 14h-.79l-.28-.27a6.5 6.5 0 1 0-.7.7l.27.28v.79l5 4.99L20.49 19l-4.99-5zm-6 0A4.5 4.5 0 1 1 14 9.5 4.5 4.5 0 0 1 9.5 14z"/></svg>
   </button>
+  <button type="button" id="unreadNews" hidden aria-label="الأخبار الجديدة" title="أخبار جديدة على هذا الجهاز"></button>
   <button class="icon-btn" id="pushBell" aria-label="فعّل الإشعارات" title="الإشعارات"><span>🔔</span><small>جارٍ الفحص</small></button>
   <button class="icon-btn" id="installTopBtn" aria-label="تثبيت التطبيق">
     <svg viewBox="0 0 24 24"><path d="M19 12v7H5v-7H3v7c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2v-7h-2zm-6 .67l2.59-2.58L17 11.5l-5 5-5-5 1.41-1.41L11 12.67V3h2z"/></svg>
@@ -211,7 +213,8 @@
     <div style="font-weight:700;font-size:16px;margin-bottom:4px">📰 مصادر أخبار البلد</div>
     <div style="font-size:13.5px;color:var(--secondary)">موجز أخبار من إعداد «دليل بلدي» عن منشورات صفحات البلد على فيسبوك، بتاريخها ومصدرها. الملخصات بتتجهّز يدويًا (مش سحب آلي)، والتفاصيل الكاملة من رابط المصدر.</div>
   </div>
-  <div id="newsList"></div>
+  <p style="font-size:12px;color:var(--secondary);margin:10px 12px">الرقم بجوار الجرس يحسب أخبارًا جديدة لم تفتحها في قسم الأخبار على هذا الجهاز. فتح هذا القسم يصفره، وليس دليلًا على وصول إشعار.</p>
+      <div id="newsList"></div>
 </div>
 
 <div class="footer-note">
@@ -240,6 +243,7 @@ function showView(name){
   tabs.forEach(t=>t.classList.toggle('active',t.dataset.view===name));
   document.querySelectorAll('.view').forEach(v=>v.classList.toggle('active',v.id==='view-'+name));
   window.scrollTo({top:0});
+  window.dispatchEvent(new CustomEvent('dalil:view',{detail:name}));
 }
 tabs.forEach(t=>t.addEventListener('click',()=>showView(t.dataset.view)));
 document.getElementById('searchTopBtn').addEventListener('click',()=>{
@@ -496,6 +500,6 @@ renderNews();
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-messaging-compat.js"></script>
-<script src="app-firebase.js?v=15"></script>
+<script src="app-firebase.js?v=16"></script>
 </body>
 </html>
