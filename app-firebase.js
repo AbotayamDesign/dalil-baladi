@@ -248,7 +248,7 @@ async function subscribePush(ask=true){
     await authReady;
     await db.collection('pushTokens').doc(token).set({
       uid: auth.currentUser.uid,
-      at: firebase.firestore.FieldValue.serverTimestamp(), ua: navigator.userAgent.slice(0,100)+' Dalil/13'
+      at: firebase.firestore.FieldValue.serverTimestamp(), ua: navigator.userAgent.slice(0,100)+' Dalil/14'
     });
     const previous=localStorage.getItem('dalil_baladi_push');
     if(previous && previous!==token){await db.collection('pushTokens').doc(previous).delete().catch(()=>{});}
@@ -305,7 +305,7 @@ function initPushUI(){
 }
 
 async function pushDiagnostic(){
-  const lines=['نسخة الصفحة: 13'];
+  const lines=['نسخة الصفحة: 14'];
   const permission=typeof Notification==='undefined'?'unsupported':Notification.permission;
   lines.push('إذن المتصفح: '+({granted:'مسموح',denied:'مرفوض',default:'لم يتم الاختيار',unsupported:'غير مدعوم'}[permission]));
   try{
@@ -359,10 +359,12 @@ async function saveAdminForm(f,coll,values){
   try{
     const editing=f.dataset.editId;
     const ref=editing?db.collection(coll).doc(editing):db.collection(coll).doc();
-    const data={...values,...await adminPhotoPatch(f),published:true,notified:!!editing};
+    const draft=!!f.elements.namedItem('draft')?.checked;
+    const before=editing?(await ref.get()).data():null;
+    const data={...values,...await adminPhotoPatch(f),published:!draft,notified:draft||!!(editing&&before?.published)};
     if(!editing)data.createdAt=firebase.firestore.FieldValue.serverTimestamp();
     await ref.set(data,{merge:true});
-    f.reset();delete f.dataset.editId;button.textContent='نشر';notice.style.color='#218b30';notice.textContent='اتحفظ ✓';
+    f.reset();delete f.dataset.editId;button.textContent='حفظ';notice.style.color='#218b30';notice.textContent='اتحفظ ✓';
   }catch(error){notice.style.color='#c40020';notice.textContent=error.message||'الحفظ لم يكتمل، جرب تاني.';}
   finally{button.disabled=false;}
 }
@@ -437,14 +439,14 @@ function loadAdminData(){
   db.collection('news').orderBy('createdAt','desc').limit(30).onSnapshot(snap=>{
     document.getElementById('manageNews').innerHTML = snap.docs.map(d=>{
       const n = d.data();
-      return '<div class="admin-row"><div>'+esc(n.title)+'</div>' +
-        '<button class="notify-doc" data-coll="news" data-id="'+d.id+'">إرسال إشعار</button><button class="edit-doc" data-coll="news" data-id="'+d.id+'">تعديل</button><button class="del-doc" data-coll="news" data-id="'+d.id+'">حذف</button></div>';
+      return '<div class="admin-row"><div>'+esc(n.title)+(n.published===false?' · مسودة خاصة':'')+'</div>' +
+        (n.published===false?'':'<button class="notify-doc" data-coll="news" data-id="'+d.id+'">إرسال إشعار</button>')+'<button class="edit-doc" data-coll="news" data-id="'+d.id+'">تعديل</button><button class="del-doc" data-coll="news" data-id="'+d.id+'">حذف</button></div>';
     }).join('');
   });
   db.collection('shops').orderBy('createdAt','desc').limit(30).onSnapshot(snap=>{
     document.getElementById('manageShops').innerHTML = snap.docs.map(d=>{
       const s = d.data();
-      return '<div class="admin-row"><div>'+esc(s.name)+'</div>' +
+      return '<div class="admin-row"><div>'+esc(s.name)+(s.published===false?' · مسودة خاصة':'')+'</div>' +
         '<button class="edit-doc" data-coll="shops" data-id="'+d.id+'">تعديل</button><button class="del-doc" data-coll="shops" data-id="'+d.id+'">حذف</button></div>';
     }).join('');
   });
@@ -464,7 +466,8 @@ document.addEventListener('click', async e=>{
     if(edit && isAdmin(auth.currentUser)){
       const doc = await db.collection(edit.dataset.coll).doc(edit.dataset.id).get();
       const f = document.getElementById(edit.dataset.coll==='news'?'publishNews':'publishShop');
-      const data=doc.data();
+      const data=doc.data();f.reset();
+      f.elements.namedItem('draft').checked=data.published===false;
       [...f.elements].forEach(el=>{if(el.type!=='file' && el.type!=='checkbox' && el.name && data[el.name]!=null) el.value=data[el.name];});
       f.dataset.editId=doc.id; f.querySelector('button[type=submit]').textContent='حفظ التعديل';
       f.scrollIntoView({block:'start'});
