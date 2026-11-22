@@ -34,15 +34,43 @@ function deviceId(){
 
 /* ---------- Firestore-backed content overlay ----------
    Static data.json stays as the base; published Firestore docs override/extend. */
+/* Device-local news unread state. First snapshot is a baseline, not a fake backlog. */
+const NEWS_SEEN_KEY='dalil_news_seen_v1',NEWS_UNREAD_KEY='dalil_news_unread_v1';
+function readNewsSet(key){try{const v=JSON.parse(localStorage.getItem(key));return Array.isArray(v)?new Set(v):null;}catch(e){return null;}}
+let knownNews=readNewsSet(NEWS_SEEN_KEY),unreadNews=readNewsSet(NEWS_UNREAD_KEY)||new Set(),visibleNews=[];
+function persistNewsState(){try{localStorage.setItem(NEWS_SEEN_KEY,JSON.stringify([...knownNews].slice(-2000)));localStorage.setItem(NEWS_UNREAD_KEY,JSON.stringify([...unreadNews]));}catch(e){}}
+function updateUnreadUI(){
+ const button=document.getElementById('unreadNews');if(!button)return;
+ const n=unreadNews.size;button.hidden=n===0;button.textContent=n>99?'99+':String(n);
+ button.setAttribute('aria-label',n+' أخبار جديدة لم تُفتح في قسم الأخبار على هذا الجهاز');
+ button.title='أخبار جديدة على هذا الجهاز، افتح قسم الأخبار لقراءتها. ليس عداد وصول الإشعارات.';
+}
+function markNewsOpened(){if(!knownNews)return;visibleNews.forEach(id=>{knownNews.add(id);unreadNews.delete(id);});persistNewsState();updateUnreadUI();}
+function trackPublishedNews(ids){
+ visibleNews=ids;const published=new Set(ids);
+ if(knownNews===null){knownNews=new Set(ids);unreadNews.clear();}
+ else ids.forEach(id=>{if(!knownNews.has(id)){knownNews.add(id);unreadNews.add(id);}});
+ unreadNews.forEach(id=>{if(!published.has(id))unreadNews.delete(id);});
+ if(document.visibilityState==='visible'&&document.querySelector('.tab.active[data-view="news"]'))markNewsOpened();
+ else{persistNewsState();updateUnreadUI();}
+}
+function initUnreadNews(){
+ document.getElementById('unreadNews')?.addEventListener('click',()=>showView('news'));
+ window.addEventListener('dalil:view',e=>{if(e.detail==='news')markNewsOpened();});
+ document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='visible'&&document.querySelector('.tab.active[data-view="news"]'))markNewsOpened();});
+ updateUnreadUI();
+}
+
 const fsNews = new Map(), fsShops = new Map();
 let onOverlayChange = null;
 
 function esc(s){ return String(s==null?'':s).replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c])); }
 
 function watchContent(){
-  db.collection('news').where('published','==',true).onSnapshot(snap=>{
+  db.collection('news').where('published','==',true).onSnapshot({includeMetadataChanges:true},snap=>{
     fsNews.clear();
     snap.forEach(d=>fsNews.set(d.id, Object.assign({fsId:d.id}, d.data())));
+    if(!snap.metadata.fromCache)trackPublishedNews(snap.docs.map(d=>d.id));
     if(onOverlayChange) onOverlayChange();
   }, err=>console.warn('news watch', err));
   db.collection('shops').where('published','==',true).onSnapshot(snap=>{
@@ -263,7 +291,7 @@ async function subscribePush(ask=true){
     await authReady;
     await db.collection('pushTokens').doc(token).set({
       uid: auth.currentUser.uid,
-      at: firebase.firestore.FieldValue.serverTimestamp(), ua: navigator.userAgent.slice(0,100)+' Dalil/15'
+      at: firebase.firestore.FieldValue.serverTimestamp(), ua: navigator.userAgent.slice(0,100)+' Dalil/16'
     });
     const previous=localStorage.getItem('dalil_baladi_push');
     if(previous && previous!==token){await db.collection('pushTokens').doc(previous).delete().catch(()=>{});}
@@ -323,7 +351,7 @@ function initPushUI(){
 }
 
 async function pushDiagnostic(){
-  const lines=['نسخة الصفحة: 15'];
+  const lines=['نسخة الصفحة: 16'];
   const permission=typeof Notification==='undefined'?'unsupported':Notification.permission;
   lines.push('إذن المتصفح: '+({granted:'مسموح',denied:'مرفوض',default:'لم يتم الاختيار',unsupported:'غير مدعوم'}[permission]));
   try{
@@ -506,6 +534,7 @@ document.addEventListener('click', async e=>{
 
 /* ---------- boot ---------- */
 window.addEventListener('load', ()=>{
+  initUnreadNews();
   watchContent();
   onOverlayChange = renderOverlay;
   // static content renders async from data.json; overlay after a tick and again later
