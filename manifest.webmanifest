@@ -1,0 +1,15 @@
+{
+  "name": "دليل بلدي - الخشاشنه والمرساه",
+  "short_name": "دليل بلدي",
+  "description": "دليل محلات وخدمات وأخبار قرية الخشاشنه والمرساه",
+  "lang": "ar",
+  "dir": "rtl",
+  "start_url": "./index.html",
+  "scope": "./",
+  "display": "standalone",
+  "background_color": "#f4f6f5",
+  "theme_color": "#0d7a57",
+  "icons": [
+    {"src": "icon.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any"}
+  ]
+}
