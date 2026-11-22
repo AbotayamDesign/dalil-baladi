@@ -64,11 +64,11 @@ function initUnreadNews(){
 const fsNews = new Map(), fsShops = new Map();
 let onOverlayChange = null;
 const publicFields=['fsId','itemId','title','sourceTitle','sub','date','text','url','srcNote','imageData','name','category','desc','phone','whatsapp','map'];
-function cachePublicItem(item){const out={};publicFields.forEach(k=>{if(typeof item[k]==='string')out[k]=item[k];});if(item.createdAt?.seconds)out.createdAt={seconds:item.createdAt.seconds};return out;}
+function cachePublicItem(item){const out={};publicFields.forEach(k=>{if(typeof item[k]==='string')out[k]=item[k];});if(Array.isArray(item.images))out.images=item.images.filter(x=>typeof x==='string'&&/^data:image\/jpeg;base64,[A-Za-z0-9+/=]+$/.test(x)).slice(0,12);if(item.createdAt?.seconds)out.createdAt={seconds:item.createdAt.seconds};return out;}
 function savePublicFeed(){
  const feed={v:1,at:Date.now(),news:[...fsNews.values()].slice(0,60).map(cachePublicItem),shops:[...fsShops.values()].slice(0,100).map(cachePublicItem)};
  // Public published items only. Images are omitted if quota would make the cache too large.
- let value=JSON.stringify(feed);if(value.length>800000){feed.news.forEach(n=>delete n.imageData);feed.shops.forEach(n=>delete n.imageData);value=JSON.stringify(feed);}
+ let value=JSON.stringify(feed);if(value.length>800000){feed.news.forEach(n=>{delete n.imageData;delete n.images;});feed.shops.forEach(n=>{delete n.imageData;delete n.images;});value=JSON.stringify(feed);}
  try{localStorage.setItem('dalil_public_feed_v1',value);window.dalilCachedFeed=feed;}catch(e){}
 }
 function feedStatus(text,hide=false){const el=document.getElementById('feedStatus');if(el){el.textContent=text;el.hidden=hide;}}
@@ -102,7 +102,7 @@ function renderOverlay(){
   const newsItems = [...fsNews.values()].sort((a,b)=>((b.createdAt&&b.createdAt.seconds)||0)-((a.createdAt&&a.createdAt.seconds)||0));
   const newsHTML = newsItems.map(n=>postCard({
     id:n.itemId||('news-'+n.fsId), title:n.sourceTitle||'دليل بلدي', sub:(n.sub||'')+(n.date?' · '+n.date:''),
-    headline:n.title||'', text:n.text||'', url:n.url||'', srcNote:n.srcNote||'', imageData:n.imageData||'', demo:false
+    headline:n.title||'', text:n.text||'', url:n.url||'', srcNote:n.srcNote||'', imageData:n.imageData||'', images:n.images||[], demo:false
   }).replace('article class="card"','article class="card fs-card"')).join('');
   if(newsEl) newsEl.insertAdjacentHTML('afterbegin', newsHTML);
   if(homeEl) homeEl.insertAdjacentHTML('afterbegin', newsHTML);
@@ -473,7 +473,16 @@ function initPushDiagnostic(){
 function isAdmin(user){ return user && user.uid === ADMIN_UID; }
 
 async function adminPhotoPatch(f){
-  if(f.elements.namedItem('removePhoto')?.checked) return {imageData:''};
+  if(f.elements.namedItem('removePhoto')?.checked) return {imageData:'',images:[]};
+  const gallery=f.elements.namedItem('galleryImport')?.files[0];
+  if(gallery){
+   if(gallery.size>850000)throw new Error('ملف الصور أكبر من الحد الآمن.');
+   const g=JSON.parse(await gallery.text());if(g.v!==1||!Array.isArray(g.images)||g.images.length>12||g.images.some(x=>typeof x!=='string'||!/^data:image\/jpeg;base64,[A-Za-z0-9+/=]+$/.test(x)))throw new Error('ملف الصور غير صالح.');
+   if(g.images.join('').length>800000)throw new Error('إجمالي الصور كبير، اضغط الصور أولًا.');
+   const patch={images:g.images,imageData:''};
+   if(g.original){for(const k of ['title','text','url','sub','srcNote']){if(typeof g.original[k]!=='string'||g.original[k].length>(k==='text'?12000:1200))throw new Error('بيانات المنشور الأصلي غير صالحة.');patch[k]=g.original[k];}if(!/^https:\/\/www\.facebook\.com\//.test(patch.url))throw new Error('رابط المصدر غير صالح.');patch.date='';}
+   return patch;
+  }
   const file=f.elements.namedItem('photo')?.files[0];
   if(!file)return {};
   if(!['image/jpeg','image/png','image/webp'].includes(file.type))throw new Error('اختار صورة JPG أو PNG أو WebP.');
@@ -487,7 +496,7 @@ async function adminPhotoPatch(f){
       const canvas=document.createElement('canvas');canvas.width=Math.max(1,Math.round(img.width*scale));canvas.height=Math.max(1,Math.round(img.height*scale));
       const ctx=canvas.getContext('2d');ctx.fillStyle='#fff';ctx.fillRect(0,0,canvas.width,canvas.height);ctx.drawImage(img,0,0,canvas.width,canvas.height);
       imageData=canvas.toDataURL('image/jpeg',0.76-attempt*0.07);
-      if(imageData.length<=210000)return {imageData};
+      if(imageData.length<=210000)return {imageData,images:[]};
       max=Math.round(max*0.75);
     }
     throw new Error('الصورة كبيرة بعد الضغط، اختار صورة أبسط.');
@@ -503,6 +512,7 @@ async function saveAdminForm(f,coll,values){
     const before=editing?(await ref.get()).data():null;
     const data={...values,...await adminPhotoPatch(f),published:!draft,notified:draft||!!(editing&&before?.published)};
     if(!editing)data.createdAt=firebase.firestore.FieldValue.serverTimestamp();
+    if(new TextEncoder().encode(JSON.stringify({...before,...data})).length>950000)throw new Error('حجم المنشور أكبر من الحد الآمن.');
     await ref.set(data,{merge:true});
     f.reset();delete f.dataset.editId;button.textContent='حفظ';notice.style.color='#218b30';notice.textContent='اتحفظ ✓';
   }catch(error){notice.style.color='#c40020';notice.textContent=error.message||'الحفظ لم يكتمل، جرب تاني.';}
