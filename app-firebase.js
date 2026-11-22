@@ -63,20 +63,32 @@ function initUnreadNews(){
 
 const fsNews = new Map(), fsShops = new Map();
 let onOverlayChange = null;
+const publicFields=['fsId','itemId','title','sourceTitle','sub','date','text','url','srcNote','imageData','name','category','desc','phone','whatsapp','map'];
+function cachePublicItem(item){const out={};publicFields.forEach(k=>{if(typeof item[k]==='string')out[k]=item[k];});if(item.createdAt?.seconds)out.createdAt={seconds:item.createdAt.seconds};return out;}
+function savePublicFeed(){
+ const feed={v:1,at:Date.now(),news:[...fsNews.values()].slice(0,60).map(cachePublicItem),shops:[...fsShops.values()].slice(0,100).map(cachePublicItem)};
+ // Public published items only. Images are omitted if quota would make the cache too large.
+ let value=JSON.stringify(feed);if(value.length>800000){feed.news.forEach(n=>delete n.imageData);feed.shops.forEach(n=>delete n.imageData);value=JSON.stringify(feed);}
+ try{localStorage.setItem('dalil_public_feed_v1',value);window.dalilCachedFeed=feed;}catch(e){}
+}
+function feedStatus(text,hide=false){const el=document.getElementById('feedStatus');if(el){el.textContent=text;el.hidden=hide;}}
+
 
 function esc(s){ return String(s==null?'':s).replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c])); }
 
 function watchContent(){
   db.collection('news').where('published','==',true).onSnapshot({includeMetadataChanges:true},snap=>{
+    if(snap.metadata.fromCache&&snap.empty&&fsNews.size)return;
     fsNews.clear();
     snap.forEach(d=>fsNews.set(d.id, Object.assign({fsId:d.id}, d.data())));
-    if(!snap.metadata.fromCache)trackPublishedNews(snap.docs.map(d=>d.id));
+    if(!snap.metadata.fromCache){trackPublishedNews(snap.docs.map(d=>d.id));savePublicFeed();feedStatus(snap.empty?'مفيش أخبار منشورة لسه.':'',!snap.empty);performance.mark('dalil-live-feed-painted');}
     if(onOverlayChange) onOverlayChange();
-  }, err=>console.warn('news watch', err));
-  db.collection('shops').where('published','==',true).onSnapshot(snap=>{
+  }, err=>{console.warn('news watch',err);feedStatus(fsNews.size?'تعذر تحديث الأخبار. المعروض آخر نسخة محفوظة على الجهاز.':'تعذر تحميل الأخبار. تأكد من اتصال الإنترنت وحاول لاحقًا.');});
+  db.collection('shops').where('published','==',true).onSnapshot({includeMetadataChanges:true},snap=>{
+    if(snap.metadata.fromCache&&snap.empty&&fsShops.size)return;
     fsShops.clear();
     snap.forEach(d=>fsShops.set(d.id, Object.assign({fsId:d.id}, d.data())));
-    if(onOverlayChange) onOverlayChange();
+    if(!snap.metadata.fromCache)savePublicFeed();if(onOverlayChange) onOverlayChange();
   }, err=>console.warn('shops watch', err));
 }
 
@@ -314,7 +326,7 @@ async function subscribePush(ask=true){
     if(!token)throw Object.assign(new Error('missing token'),{code:'token-unavailable'});
     await authReady;
     stage='auth';const registrationUser=auth.currentUser;const registrationUid=registrationUser.uid;
-    const save=()=>{if((auth.currentUser!==registrationUser||auth.currentUser?.uid!==registrationUid))throw Object.assign(new Error('auth session changed'),{code:'auth-session-changed'});return db.collection('pushTokens').doc(token).set({uid:registrationUid,at:firebase.firestore.FieldValue.serverTimestamp(),ua:navigator.userAgent.slice(0,100)+' Dalil/19'});};
+    const save=()=>{if((auth.currentUser!==registrationUser||auth.currentUser?.uid!==registrationUid))throw Object.assign(new Error('auth session changed'),{code:'auth-session-changed'});return db.collection('pushTokens').doc(token).set({uid:registrationUid,at:firebase.firestore.FieldValue.serverTimestamp(),ua:navigator.userAgent.slice(0,100)+' Dalil/20'});};
     stage='store';
     try{await save();}
     catch(error){
@@ -391,10 +403,20 @@ function initPushUI(){
   });
 }
 
+async function pushHistoryHealth(){
+ return new Promise(resolve=>{
+  let done=false;const finish=value=>{if(!done){done=true;resolve(value);}};
+  setTimeout(()=>finish('unavailable'),1500);
+  let r;try{r=indexedDB.open('dalil-push-trace',1);}catch(e){finish('unavailable');return;}
+  r.onupgradeneeded=()=>r.result.createObjectStore('events',{autoIncrement:true});r.onerror=()=>finish('unavailable');
+  r.onsuccess=()=>{const d=r.result;try{const tx=d.transaction('events','readwrite'),store=tx.objectStore('events'),q=store.add({kind:'health-check',at:new Date().toISOString()});q.onsuccess=()=>store.delete(q.result);tx.oncomplete=()=>{d.close();finish('writable');};tx.onerror=()=>{d.close();finish('unavailable');};tx.onabort=()=>{d.close();finish('unavailable');};}catch(e){d.close();finish('unavailable');}};
+ });
+}
+async function tokenFingerprint(token){if(!token)return '';const digest=await crypto.subtle.digest('SHA-256',new TextEncoder().encode(token));return [...new Uint8Array(digest)].map(x=>x.toString(16).padStart(2,'0')).join('').slice(0,16);}
 let diagnosticReadVersion=0;
 async function pushDiagnostic(){
   const readVersion=++diagnosticReadVersion;
-  const lines=['نسخة الصفحة: 19'];
+  const lines=['نسخة الصفحة: 20'];
   const permission=typeof Notification==='undefined'?'unsupported':Notification.permission;
   lines.push('إذن المتصفح: '+({granted:'مسموح',denied:'مرفوض',default:'لم يتم الاختيار',unsupported:'غير مدعوم'}[permission]));
   try{
@@ -410,6 +432,9 @@ async function pushDiagnostic(){
     try{const check=JSON.parse(localStorage.getItem('dalil_push_registration_check'));if(check){const stages={permission:'إذن الإشعارات',worker:'تجهيز خدمة الاستقبال','worker-ready':'انتظار خدمة الاستقبال','browser-read':'قراءة اشتراك المتصفح','browser-subscribe':'إنشاء اشتراك المتصفح','awaiting-user':'في انتظار ضغطة إكمال التفعيل',token:'استخراج تسجيل الجهاز',auth:'تسجيل الجلسة',store:'حفظ التسجيل','renew-token':'تجديد الاشتراك (فحص سابق)','remove-old-token':'إلغاء التسجيل القديم','renew-browser-read':'قراءة الاشتراك البديل','renew-browser-subscribe':'إنشاء اشتراك المتصفح البديل','replacement-token':'استخراج التسجيل البديل','store-renewed':'حفظ التسجيل البديل',verified:'تم التحقق'};lines.push('آخر فحص للتسجيل: '+(stages[check.stage]||'غير مكتمل')+(check.name?' · '+check.name:'')+(check.code?' · '+check.code:'')+(check.detail?' · '+check.detail:'')+' · '+new Date(check.at).toLocaleTimeString('ar-EG'));}}catch(e){}
 
   }catch(e){lines.push('الفحص لم يكتمل: '+e.message);}
+  const health=await pushHistoryHealth();
+  lines.push('حالة كتابة سجل الجهاز الآن: '+(health==='writable'?'متاحة (ليست إثبات وصول)':'تعذر التحقق'));
+  try{const fingerprint=await tokenFingerprint(localStorage.getItem('dalil_baladi_push'));if(fingerprint)lines.push('بصمة آخر تسجيل محفوظ: '+fingerprint);}catch(e){}
   const events=await new Promise(resolve=>{setTimeout(()=>resolve(null),1500);let r;try{r=indexedDB.open('dalil-push-trace',1);}catch(e){resolve(null);return;}r.onupgradeneeded=()=>r.result.createObjectStore('events',{autoIncrement:true});r.onerror=()=>resolve(null);r.onsuccess=()=>{const d=r.result;try{const tx=d.transaction('events','readonly'),q=tx.objectStore('events').getAll();q.onsuccess=()=>{resolve(q.result);d.close();};q.onerror=()=>{resolve(null);d.close();};}catch(e){resolve(null);d.close();}};});
   lines.push('سجل الاستقبال البعيد على هذا الجهاز فقط:');
   lines.push('السجل محفوظ بين التحديثات؛ نسخة الخدمة أعلاه هي النسخة الحالية فقط.');
@@ -594,16 +619,19 @@ document.addEventListener('click', async e=>{
 });
 
 /* ---------- boot ---------- */
-window.addEventListener('load', ()=>{
+function boot(){
   initUnreadNews();
+  const cached=window.dalilCachedFeed;
+  (cached?.news||[]).forEach(n=>{if(n.fsId)fsNews.set(n.fsId,n);});
+  (cached?.shops||[]).forEach(n=>{if(n.fsId)fsShops.set(n.fsId,n);});
+  onOverlayChange=renderOverlay;
+  renderOverlay();
+  window.addEventListener('dalil:static-ready',renderOverlay);
   watchContent();
-  onOverlayChange = renderOverlay;
-  // static content renders async from data.json; overlay after a tick and again later
-  setTimeout(renderOverlay, 1200);
-  setTimeout(renderOverlay, 3500);
   initPushUI();
   initPushDiagnostic();
   initAdmin();
-});
+}
+if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',boot,{once:true});else boot();
 
 })();
