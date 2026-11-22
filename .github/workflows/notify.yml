@@ -7,6 +7,10 @@ on:
   schedule:
     - cron: '*/15 * * * *'
 
+concurrency:
+  group: dalil-notifications
+  cancel-in-progress: false
+
 permissions:
   contents: read
   id-token: write
@@ -81,7 +85,7 @@ jobs:
             }
             async function send(token, title, body, itemId, itemType) {
               const res = await fetch(FCM, { method: 'POST', headers: H, body: JSON.stringify({
-                message: { token, data: { title, body, itemId, itemType } }
+                message: { token, notification: {title, body}, webpush: {notification:{icon:'https://abotayamdesign.github.io/dalil-baladi/icon-192.png',dir:'rtl',lang:'ar'},fcm_options:{link:'https://abotayamdesign.github.io/dalil-baladi/#'+itemType+'-'+itemId}}, data: { title, body, itemId, itemType } }
               })});
               if (res.ok) return 'ok';
               const j = await res.json().catch(() => ({}));
@@ -106,13 +110,15 @@ jobs:
               const title = isShop ? ('محل جديد: ' + txt(f.name)) : 'خبر جديد';
               const body = isShop ? txt(f.category) : (txt(f.title) + (txt(f.date) ? ' - ' + txt(f.date) : ''));
               const id = d.name.split('/').pop();
-              let ok = 0;
+              let ok = 0, failed = 0;
               for (const t of tokens) {
                 const r = await send(t, title, body, id, isShop ? 'shop' : 'news');
                 if (r === 'ok') ok++;
                 else if (r === 'dead') await deleteToken(t);
+                else failed++;
               }
-              await markNotified(coll, id);
+              if(!failed) await markNotified(coll, id);
+              else throw new Error('Notification delivery request failed; item left pending for retry');
               console.log(`${coll}/${id}: sent to ${ok}/${tokens.length}`);
             }
           }
