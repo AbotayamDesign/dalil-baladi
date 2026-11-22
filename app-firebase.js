@@ -21,9 +21,9 @@ const db = firebase.firestore();
 /* Anonymous auth gives every device a stable, unforgeable uid used for like ownership. */
 let uid = null;
 const authReady = new Promise(res=>{
-  auth.onAuthStateChanged(u=>{ uid = u ? u.uid : null; res(); });
+  auth.onAuthStateChanged(u=>{ uid = u ? u.uid : null; if(u) res(); else auth.signInAnonymously().catch(err=>console.warn('anon auth',err)); });
 });
-auth.signInAnonymously().catch(err=>console.warn('anon auth', err));
+
 
 /* ---------- device id (for own-like toggle) ---------- */
 function deviceId(){
@@ -337,27 +337,31 @@ function initAdmin(){
     e.preventDefault();
     const f = e.target;
     const el = n => f.elements.namedItem(n).value.trim();
-    await db.collection('news').add({
+    const editing = f.dataset.editId;
+    const ref = editing ? db.collection('news').doc(editing) : db.collection('news').doc();
+    await ref.set({
       title: el('title'), text: el('text'),
       date: el('date'), url: el('url'),
-      published: true, notified: false,
+      published: true, notified: !!editing,
       createdAt: firebase.firestore.FieldValue.serverTimestamp()
     });
-    f.reset(); f.querySelector('.ok').textContent = 'اتنشر ✓';
+    f.reset(); delete f.dataset.editId; f.querySelector('button[type=submit]').textContent = 'نشر'; f.querySelector('.ok').textContent = 'اتحفظ ✓';
     setTimeout(()=>f.querySelector('.ok').textContent='', 3000);
   });
   document.getElementById('publishShop').addEventListener('submit', async e=>{
     e.preventDefault();
     const f = e.target;
     const el = n => f.elements.namedItem(n).value.trim();
-    await db.collection('shops').add({
+    const editing = f.dataset.editId;
+    const ref = editing ? db.collection('shops').doc(editing) : db.collection('shops').doc();
+    await ref.set({
       name: el('name'), category: el('category'),
       desc: el('desc'), phone: el('phone'),
       whatsapp: el('whatsapp'), map: el('map'),
-      published: true, notified: false,
+      published: true, notified: !!editing,
       createdAt: firebase.firestore.FieldValue.serverTimestamp()
     });
-    f.reset(); f.querySelector('.ok').textContent = 'اتنشر ✓';
+    f.reset(); delete f.dataset.editId; f.querySelector('button[type=submit]').textContent = 'نشر'; f.querySelector('.ok').textContent = 'اتحفظ ✓';
     setTimeout(()=>f.querySelector('.ok').textContent='', 3000);
   });
 }
@@ -378,14 +382,14 @@ function loadAdminData(){
     document.getElementById('manageNews').innerHTML = snap.docs.map(d=>{
       const n = d.data();
       return '<div class="admin-row"><div>'+esc(n.title)+'</div>' +
-        '<button class="del-doc" data-coll="news" data-id="'+d.id+'">حذف</button></div>';
+        '<button class="edit-doc" data-coll="news" data-id="'+d.id+'">تعديل</button><button class="del-doc" data-coll="news" data-id="'+d.id+'">حذف</button></div>';
     }).join('');
   });
   db.collection('shops').orderBy('createdAt','desc').limit(30).onSnapshot(snap=>{
     document.getElementById('manageShops').innerHTML = snap.docs.map(d=>{
       const s = d.data();
       return '<div class="admin-row"><div>'+esc(s.name)+'</div>' +
-        '<button class="del-doc" data-coll="shops" data-id="'+d.id+'">حذف</button></div>';
+        '<button class="edit-doc" data-coll="shops" data-id="'+d.id+'">تعديل</button><button class="del-doc" data-coll="shops" data-id="'+d.id+'">حذف</button></div>';
     }).join('');
   });
 }
@@ -394,7 +398,16 @@ document.addEventListener('click', async e=>{
   const ap = e.target.closest('.approve');
   const rj = e.target.closest('.reject');
   const del = e.target.closest('.del-doc');
+  const edit = e.target.closest('.edit-doc');
   try{
+    if(edit && isAdmin(auth.currentUser)){
+      const doc = await db.collection(edit.dataset.coll).doc(edit.dataset.id).get();
+      const f = document.getElementById(edit.dataset.coll==='news'?'publishNews':'publishShop');
+      const data=doc.data();
+      [...f.elements].forEach(el=>{if(el.name && data[el.name]!=null) el.value=data[el.name];});
+      f.dataset.editId=doc.id; f.querySelector('button[type=submit]').textContent='حفظ التعديل';
+      f.scrollIntoView({block:'start'});
+    }
     if(ap) await db.collection('comments').doc(ap.dataset.id).update({approved:true});
     if(rj) await db.collection('comments').doc(rj.dataset.id).delete();
     if(del) await db.collection(del.dataset.coll).doc(del.dataset.id).delete();
