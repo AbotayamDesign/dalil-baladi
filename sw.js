@@ -1,7 +1,10 @@
 importScripts('./firebase-messaging-sw.js');
-const CACHE_NAME='dalil-baladi-v8';
+const CACHE_NAME='dalil-baladi-v9';
 self.skipWaiting();
-self.addEventListener('message', e=>{if(e.data==='DALIL_VERSION' && e.ports[0])e.ports[0].postMessage(CACHE_NAME);});
+self.addEventListener('message', e=>{
+ if(e.data==='DALIL_VERSION' && e.ports[0])e.ports[0].postMessage(CACHE_NAME);
+ if(e.data==='DALIL_ACTIVATE') e.waitUntil(self.skipWaiting());
+});
 const ASSETS=['./','./index.html','./data.json','./manifest.webmanifest','./icon.svg','./app-firebase.js','./firebase-messaging-sw.js'];
 self.addEventListener('install',e=>{
   self.skipWaiting();
