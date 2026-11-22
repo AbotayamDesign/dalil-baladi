@@ -1,0 +1,74 @@
+name: Notify on new published content
+# Sends FCM pushes for news/shops docs that are published but not yet notified.
+# Auth: Workload Identity Federation (no service-account keys). Repo-scoped via
+# the provider condition assertion.repository == 'AbotayamDesign/dalil-baladi'.
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: '*/15 * * * *'
+
+permissions:
+  contents: read
+  id-token: write
+
+jobs:
+  notify:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: google-github-actions/auth@v2
+        with:
+          workload_identity_provider: ${{ secrets.GCP_WORKLOAD_IDENTITY_PROVIDER }}
+          service_account: ${{ secrets.GCP_SERVICE_ACCOUNT }}
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - run: npm install firebase-admin@12 --no-fund --no-audit
+
+      - name: Send notifications for new published items
+        env:
+          GCP_PROJECT_ID: dalil-baladi
+        run: |
+          node <<'EOF'
+          const admin = require('firebase-admin');
+          admin.initializeApp({ projectId: process.env.GCP_PROJECT_ID });
+          const db = admin.firestore();
+
+          async function notifyCollection(coll, itemType) {
+            const snap = await db.collection(coll)
+              .where('published', '==', true)
+              .where('notified', '==', false)
+              .get();
+            if (snap.empty) { console.log(coll + ': nothing new'); return; }
+
+            const tokensSnap = await db.collection('pushTokens').get();
+            const tokens = tokensSnap.docs.map(d => d.id).filter(Boolean);
+            if (tokens.length === 0) { console.log('no subscribers; marking notified anyway=false, skipping'); return; }
+
+            for (const doc of snap.docs) {
+              const d = doc.data();
+              const title = itemType === 'shop' ? 'محل جديد: ' + (d.title || '') : 'خبر جديد';
+              const body = (d.title || '') + (d.date ? ' - ' + d.date : '');
+              const res = await admin.messaging().sendEachForMulticast({
+                tokens,
+                data: { title, body, itemId: doc.id, itemType }
+              });
+              // prune dead tokens
+              const dead = [];
+              res.responses.forEach((r, i) => {
+                if (!r.success && r.error && /registration-token-not-registered/.test(r.error.code)) dead.push(tokens[i]);
+              });
+              await Promise.all(dead.map(t => db.collection('pushTokens').doc(t).delete().catch(() => {})));
+              await doc.ref.update({ notified: true, notifiedAt: admin.firestore.FieldValue.serverTimestamp() });
+              console.log(coll + '/' + doc.id + ': sent to ' + res.successCount + '/' + tokens.length);
+            }
+          }
+
+          (async () => {
+            await notifyCollection('news', 'news');
+            await notifyCollection('shops', 'shop');
+          })().catch(e => { console.error(e); process.exit(1); });
+          EOF
