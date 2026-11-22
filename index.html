@@ -176,7 +176,7 @@
 <div class="view" id="view-news">
   <div class="card" style="padding:14px">
     <div style="font-weight:700;font-size:16px;margin-bottom:4px">📰 مصادر أخبار البلد</div>
-    <div style="font-size:13.5px;color:var(--secondary)">دي صفحات فيسبوك من البلد جمّعناها في مكان واحد مع وصف مختصر من إعدادنا. التطبيق مش بيسحب منشورات آليًا ولا دي خلاصة أخبار حية — للمنشورات الكاملة افتح المصدر من الرابط.</div>
+    <div style="font-size:13.5px;color:var(--secondary)">موجز أخبار من إعداد «دليل بلدي» عن منشورات صفحات البلد على فيسبوك، بتاريخها ومصدرها. الملخصات بتتجهّز يدويًا (مش سحب آلي)، والتفاصيل الكاملة من رابط المصدر.</div>
   </div>
   <div id="newsList"></div>
 </div>
@@ -244,6 +244,7 @@ function postCard(item,opts){
   const demo=item.demo?'<span class="badge-demo">مثال تجريبي</span>':'';
   const link=item.url?`<a class="source-link" href="${item.url}" target="_blank" rel="noopener">${LINK_SVG}${opts.linkLabel||'المصدر على فيسبوك'}</a>`:'';
   const srcNote=item.srcNote?`<span class="src-note">${item.srcNote}</span>`:'';
+  const headline=item.headline?`<b style="display:block;margin-bottom:3px">${item.headline}</b>`:'';
   return `<article class="card">
     <div class="post-head">
       <div class="avatar" style="background:${avatarColor(item.title)}">${initialOf(item.title)}</div>
@@ -252,7 +253,7 @@ function postCard(item,opts){
         <div class="sub">${item.sub||''}</div>
       </div>
     </div>
-    <div class="post-text">${item.text}${srcNote}</div>
+    <div class="post-text">${headline}${item.text}${srcNote}</div>
     ${link}
     ${actionBar(item)}
   </article>`;
