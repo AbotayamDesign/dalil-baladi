@@ -280,24 +280,41 @@ function pushTrace(kind){
 
 /* ---------- push subscribe ---------- */
 let pushRegistrationRunning=false;
-function recordPushRegistration(stage,code){
-  try{localStorage.setItem('dalil_push_registration_check',JSON.stringify({stage,code:code||'',at:new Date().toISOString()}));}catch(e){}
+function recordPushRegistration(stage,code,name,detail){
+  const check={stage,code:code||'',at:new Date().toISOString()};
+  if(name&&name!=='Error')check.name=String(name).replace(/[^a-zA-Z0-9_-]/g,'').slice(0,60);
+  if(detail)check.detail=detail;
+  try{localStorage.setItem('dalil_push_registration_check',JSON.stringify(check));}catch(e){}
+}
+async function browserPushSubscription(reg,setStage){
+ setStage('browser-read');let subscription=await reg.pushManager.getSubscription();
+ if(!subscription){
+  setStage('browser-subscribe');
+  const key=Uint8Array.from(atob(VAPID_KEY.replace(/-/g,'+').replace(/_/g,'/')),c=>c.charCodeAt(0));
+  subscription=await reg.pushManager.subscribe({userVisibleOnly:true,applicationServerKey:key});
+ }
+ return subscription;
 }
 async function subscribePush(ask=true){
   if(pushRegistrationRunning)return;
   if(!('Notification' in window))return setPushUI('unsupported');
   pushRegistrationRunning=true;let stage='permission';setPushUI('checking');
   try{
-    const perm=ask?await Notification.requestPermission():Notification.permission;
+    const perm=ask&&Notification.permission!=='granted'?await Notification.requestPermission():Notification.permission;
     if(perm!=='granted'){recordPushRegistration('permission',perm);return setPushUI('denied');}
     stage='worker';
     const reg=await navigator.serviceWorker.register('sw.js',{updateViaCache:'none'});
+    stage='worker-ready';const ready=await navigator.serviceWorker.ready;
+    if(ready.scope!==reg.scope)throw Object.assign(new Error('scope mismatch'),{code:'worker-scope-mismatch'});
+    stage='browser-read';const current=await reg.pushManager.getSubscription();
+    if(!current&&!ask){recordPushRegistration('awaiting-user','');return setPushUI('error');}
+    await browserPushSubscription(reg,value=>stage=value);
     const messaging=firebase.messaging();
     stage='token';let token=await messaging.getToken({vapidKey:VAPID_KEY,serviceWorkerRegistration:reg});
     if(!token)throw Object.assign(new Error('missing token'),{code:'token-unavailable'});
     await authReady;
     stage='auth';const registrationUser=auth.currentUser;const registrationUid=registrationUser.uid;
-    const save=()=>{if((auth.currentUser!==registrationUser||auth.currentUser?.uid!==registrationUid))throw Object.assign(new Error('auth session changed'),{code:'auth-session-changed'});return db.collection('pushTokens').doc(token).set({uid:registrationUid,at:firebase.firestore.FieldValue.serverTimestamp(),ua:navigator.userAgent.slice(0,100)+' Dalil/18'});};
+    const save=()=>{if((auth.currentUser!==registrationUser||auth.currentUser?.uid!==registrationUid))throw Object.assign(new Error('auth session changed'),{code:'auth-session-changed'});return db.collection('pushTokens').doc(token).set({uid:registrationUid,at:firebase.firestore.FieldValue.serverTimestamp(),ua:navigator.userAgent.slice(0,100)+' Dalil/19'});};
     stage='store';
     try{await save();}
     catch(error){
@@ -307,9 +324,10 @@ async function subscribePush(ask=true){
       if(typeof previousOwner!=='string'||!previousOwner||previousOwner===registrationUid||(auth.currentUser!==registrationUser||auth.currentUser?.uid!==registrationUid))throw error;
       // The existing browser token can still belong to the previous anonymous session.
       // Renew only this browser's own token once; never relax ownership rules.
-      stage='renew-token';const rejected=token;
+      stage='remove-old-token';const rejected=token;
       await messaging.deleteToken();
-      token=await messaging.getToken({vapidKey:VAPID_KEY,serviceWorkerRegistration:reg});
+      await browserPushSubscription(reg,value=>stage='renew-'+value);
+      stage='replacement-token';token=await messaging.getToken({vapidKey:VAPID_KEY,serviceWorkerRegistration:reg});
       if(!token||token===rejected)throw Object.assign(new Error('token renewal incomplete'),{code:'token-renewal-unavailable'});
       stage='store-renewed';await save();
     }
@@ -318,7 +336,8 @@ async function subscribePush(ask=true){
     localStorage.setItem('dalil_baladi_push',token);recordPushRegistration('verified','');setPushUI('on');
   }catch(error){
     const code=String(error.code||error.name||'unknown').replace(/[^a-zA-Z0-9_/-]/g,'').slice(0,80);
-    recordPushRegistration(stage,code);console.warn('push registration failed',stage,code);setPushUI('error');
+    const detail=/registration failed.*push service error/i.test(error.message||'')?'browser-push-service-error':/registration failed.*service not available/i.test(error.message||'')?'browser-service-unavailable':'';
+    recordPushRegistration(stage,code,error.name,detail);console.warn('push registration failed',stage,code);setPushUI('error');
   }finally{pushRegistrationRunning=false;if(document.getElementById('pushDiagnosticModal')?.classList.contains('show'))pushDiagnostic();}
 }
 async function unsubscribePush(){
@@ -375,7 +394,7 @@ function initPushUI(){
 let diagnosticReadVersion=0;
 async function pushDiagnostic(){
   const readVersion=++diagnosticReadVersion;
-  const lines=['نسخة الصفحة: 18'];
+  const lines=['نسخة الصفحة: 19'];
   const permission=typeof Notification==='undefined'?'unsupported':Notification.permission;
   lines.push('إذن المتصفح: '+({granted:'مسموح',denied:'مرفوض',default:'لم يتم الاختيار',unsupported:'غير مدعوم'}[permission]));
   try{
@@ -386,8 +405,9 @@ async function pushDiagnostic(){
     lines.push('اشتراك الجهاز: '+(subscription?'موجود':'غير موجود'));
     if(subscription?.options?.applicationServerKey){const key=btoa(String.fromCharCode(...new Uint8Array(subscription.options.applicationServerKey))).replace(/\+/g,'-').replace(/\//g,'_').replace(/=+$/,'');lines.push('مفتاح الاشتراك: '+(key===VAPID_KEY?'مطابق':'غير مطابق'));}
     lines.push('التسجيل مع الإدارة: '+({on:'تم التحقق منه الآن',checking:'جارٍ التحقق الآن'}[document.getElementById('pushBell').dataset.state]||'لم يتم التحقق منه'));
+    const retry=document.getElementById('pushRegisterRetry');if(retry)retry.hidden=permission!=='granted'||document.getElementById('pushBell').dataset.state==='on'||pushRegistrationRunning;
     lines.push('نوع الجلسة: '+(auth.currentUser?.uid===ADMIN_UID?'إدارة':auth.currentUser?.isAnonymous?'زائر':'غير مؤكدة'));
-    try{const check=JSON.parse(localStorage.getItem('dalil_push_registration_check'));if(check){const stages={permission:'إذن الإشعارات',worker:'تجهيز خدمة الاستقبال',token:'استخراج تسجيل الجهاز',auth:'تسجيل الجلسة',store:'حفظ التسجيل',verified:'تم التحقق'};lines.push('آخر فحص للتسجيل: '+(stages[check.stage]||'غير مكتمل')+(check.code?' · '+check.code:'')+' · '+new Date(check.at).toLocaleTimeString('ar-EG'));}}catch(e){}
+    try{const check=JSON.parse(localStorage.getItem('dalil_push_registration_check'));if(check){const stages={permission:'إذن الإشعارات',worker:'تجهيز خدمة الاستقبال','worker-ready':'انتظار خدمة الاستقبال','browser-read':'قراءة اشتراك المتصفح','browser-subscribe':'إنشاء اشتراك المتصفح','awaiting-user':'في انتظار ضغطة إكمال التفعيل',token:'استخراج تسجيل الجهاز',auth:'تسجيل الجلسة',store:'حفظ التسجيل','renew-token':'تجديد الاشتراك (فحص سابق)','remove-old-token':'إلغاء التسجيل القديم','renew-browser-read':'قراءة الاشتراك البديل','renew-browser-subscribe':'إنشاء اشتراك المتصفح البديل','replacement-token':'استخراج التسجيل البديل','store-renewed':'حفظ التسجيل البديل',verified:'تم التحقق'};lines.push('آخر فحص للتسجيل: '+(stages[check.stage]||'غير مكتمل')+(check.name?' · '+check.name:'')+(check.code?' · '+check.code:'')+(check.detail?' · '+check.detail:'')+' · '+new Date(check.at).toLocaleTimeString('ar-EG'));}}catch(e){}
 
   }catch(e){lines.push('الفحص لم يكتمل: '+e.message);}
   const events=await new Promise(resolve=>{setTimeout(()=>resolve(null),1500);let r;try{r=indexedDB.open('dalil-push-trace',1);}catch(e){resolve(null);return;}r.onupgradeneeded=()=>r.result.createObjectStore('events',{autoIncrement:true});r.onerror=()=>resolve(null);r.onsuccess=()=>{const d=r.result;try{const tx=d.transaction('events','readonly'),q=tx.objectStore('events').getAll();q.onsuccess=()=>{resolve(q.result);d.close();};q.onerror=()=>{resolve(null);d.close();};}catch(e){resolve(null);d.close();}};});
@@ -401,6 +421,14 @@ async function pushDiagnostic(){
 }
 function initPushDiagnostic(){
  const modal=document.getElementById('pushDiagnosticModal');
+ const retry=document.getElementById('pushRegisterRetry');
+ if(retry)retry.addEventListener('click',async()=>{
+  if(retry.disabled||pushRegistrationRunning)return;
+  retry.disabled=true;retry.textContent='جاري إكمال التسجيل...';
+  await subscribePush(true);
+  retry.textContent='انتهت المحاولة؛ النتيجة أعلاه';
+  pushDiagnostic();
+ });
  const refresh=()=>{if(modal.classList.contains('show'))pushDiagnostic();};
  auth.onAuthStateChanged(refresh);
  navigator.serviceWorker?.addEventListener('controllerchange',refresh);
