@@ -284,7 +284,7 @@ function actionBar(item){
 function safeText(value){return String(value==null?'':value).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));}
 function safeWebURL(value){return /^https?:\/\//i.test(String(value||''))?safeText(value):'';}
 function validPostImages(item){const list=Array.isArray(item.images)&&item.images.length?item.images:[item.imageData];return list.filter(x=>/^data:image\/jpeg;base64,[A-Za-z0-9+/=]+$/.test(x||'')).slice(0,12);}
-function postGallery(item){const images=validPostImages(item);if(!images.length)return '';return `<div class="post-gallery" style="display:flex;overflow-x:auto;scroll-snap-type:x mandatory;background:#f0f2f5;direction:rtl">${images.map((src,i)=>`<figure style="margin:0;flex:0 0 100%;scroll-snap-align:start"><img src="${src}" alt="صورة ${i+1} من ${images.length} في المنشور الأصلي" loading="lazy" style="display:block;width:100%;height:auto;max-height:560px;object-fit:contain"><figcaption style="text-align:center;padding:6px;color:#4b5563;font-size:13px">${i+1} / ${images.length}${images.length>1?' · اسحب لمشاهدة باقي الصور':''}</figcaption></figure>`).join('')}</div>`;}
+function postGallery(item){const images=validPostImages(item);if(!images.length)return '';return `<div class="post-gallery" style="display:flex;overflow-x:auto;scroll-snap-type:x mandatory;background:#f0f2f5;direction:rtl">${images.map((src,i)=>`<figure style="margin:0;flex:0 0 100%;scroll-snap-align:start"><img src="${src}" alt="صورة ${i+1} من ${images.length} في المنشور الأصلي" loading="lazy" style="display:block;width:100%;height:min(110vw,460px);object-fit:contain"><figcaption style="text-align:center;padding:6px;color:#4b5563;font-size:13px">${i+1} / ${images.length}${images.length>1?' · اسحب لمشاهدة باقي الصور':''}</figcaption></figure>`).join('')}</div>`;}
 function postCard(item,opts){
   opts=opts||{};
   const demo=item.demo?'<span class="badge-demo">مثال تجريبي</span>':'';
@@ -529,4 +529,4 @@ renderNews();
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-messaging-compat.js"></script>
 <script src="app-firebase.js?v=21"></script>
 </body>
-</html>
+             </html>
