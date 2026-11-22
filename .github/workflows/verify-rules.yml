@@ -56,7 +56,12 @@ jobs:
           await test('unauthenticated news write','news/'+tag+'_none',{published:bv(false)},null,null,'deny');
           await test('own like','likes/'+tag+'/devices/'+uid,{},token,'at','allow');
           await test('foreign uid like','likes/'+tag+'/devices/foreign_uid',{},token,'at','deny');
+          await test('own push token','pushTokens/'+tag,{uid:sv(uid),ua:sv('verification')},token,'at','allow');
+          await test('foreign owner token','pushTokens/'+tag+'_other',{uid:sv('foreign_uid'),ua:sv('verification')},token,'at','deny');
+          r=await fetch(root+'/pushTokens/'+tag,{headers:{Authorization:'Bearer '+token}});console.log((r.status===403?'PASS':'FAIL')+' private push token read denied HTTP '+r.status);if(r.status!==403)failures++;
+          r=await fetch(root+'/comments/'+tag,{method:'DELETE',headers:{Authorization:'Bearer '+token}});console.log((r.status===403?'PASS':'FAIL')+' non-admin moderation denied HTTP '+r.status);if(r.status!==403)failures++;
           await test('own share','shares/'+tag+'/devices/'+uid,{},token,'at','allow');
+          r=await fetch(root+'/pushTokens/'+tag,{method:'DELETE',headers:{Authorization:'Bearer '+token}});console.log((r.ok?'PASS':'FAIL')+' unsubscribe token delete HTTP '+r.status);if(!r.ok)failures++;
           r=await fetch(root+'/likes/'+tag+'/devices/'+uid,{method:'DELETE',headers:{Authorization:'Bearer '+token}});console.log((r.ok?'PASS':'FAIL')+' own unlike HTTP '+r.status);if(!r.ok)failures++;
           r=await fetch(root+'/comments/'+tag,{headers:{Authorization:'Bearer '+token}});console.log((r.ok?'PASS':'FAIL')+' shared comment read HTTP '+r.status);if(!r.ok)failures++;
           }finally{
