@@ -392,7 +392,7 @@ function loadAdminData(){
     document.getElementById('manageNews').innerHTML = snap.docs.map(d=>{
       const n = d.data();
       return '<div class="admin-row"><div>'+esc(n.title)+'</div>' +
-        '<button class="edit-doc" data-coll="news" data-id="'+d.id+'">تعديل</button><button class="del-doc" data-coll="news" data-id="'+d.id+'">حذف</button></div>';
+        '<button class="notify-doc" data-coll="news" data-id="'+d.id+'">إرسال إشعار</button><button class="edit-doc" data-coll="news" data-id="'+d.id+'">تعديل</button><button class="del-doc" data-coll="news" data-id="'+d.id+'">حذف</button></div>';
     }).join('');
   });
   db.collection('shops').orderBy('createdAt','desc').limit(30).onSnapshot(snap=>{
@@ -409,7 +409,12 @@ document.addEventListener('click', async e=>{
   const rj = e.target.closest('.reject');
   const del = e.target.closest('.del-doc');
   const edit = e.target.closest('.edit-doc');
+  const notify = e.target.closest('.notify-doc');
   try{
+    if(notify && isAdmin(auth.currentUser)){
+      await db.collection(notify.dataset.coll).doc(notify.dataset.id).update({notified:false});
+      notify.textContent='في انتظار الإرسال'; notify.disabled=true;
+    }
     if(edit && isAdmin(auth.currentUser)){
       const doc = await db.collection(edit.dataset.coll).doc(edit.dataset.id).get();
       const f = document.getElementById(edit.dataset.coll==='news'?'publishNews':'publishShop');
