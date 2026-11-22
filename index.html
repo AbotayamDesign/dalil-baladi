@@ -33,15 +33,17 @@
   .topbar .icon-btn svg{width:20px;height:20px;fill:#fff}
 
   /* ===== Tabs ===== */
-  .tabs{position:sticky;top:56px;z-index:49;background:var(--card);display:flex;
-    border-bottom:1px solid var(--divider)}
+  .tabs{position:fixed;bottom:0;left:0;right:0;z-index:49;background:var(--card);display:flex;
+    border-top:1px solid var(--divider);box-shadow:0 -2px 8px rgba(0,0,0,.08);
+    padding-bottom:env(safe-area-inset-bottom,0px)}
   .tab{flex:1;display:flex;flex-direction:column;align-items:center;gap:2px;padding:9px 0 7px;
     color:var(--secondary);font-size:12px;font-weight:600;border-bottom:3px solid transparent}
   .tab svg{width:24px;height:24px;fill:var(--secondary)}
-  .tab.active{color:var(--fb-blue);border-bottom-color:var(--fb-blue)}
+  .tab{border-bottom:none;border-top:3px solid transparent}
+  .tab.active{color:var(--fb-blue);border-top-color:var(--fb-blue)}
   .tab.active svg{fill:var(--fb-blue)}
 
-  .view{display:none;padding-bottom:80px}
+  .view{display:none;padding-bottom:calc(76px + env(safe-area-inset-bottom,0px))}
   .view.active{display:block}
 
   /* ===== Feed cards ===== */
@@ -71,7 +73,7 @@
   .action.disabled{opacity:.55}
 
   /* ===== Search ===== */
-  .search-wrap{position:sticky;top:110px;z-index:40;padding:8px 12px;background:var(--bg)}
+  .search-wrap{position:sticky;top:56px;z-index:40;padding:8px 12px;background:var(--bg)}
   .search-box{display:flex;align-items:center;gap:8px;background:#e4e6eb;border-radius:20px;padding:8px 14px}
   .search-box svg{width:17px;height:17px;fill:var(--secondary);flex-shrink:0}
   .search-box input{flex:1;border:none;background:none;outline:none;font-size:15px;font-family:inherit;color:var(--text)}
