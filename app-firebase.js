@@ -235,6 +235,21 @@ function enhanceCards(){
   });
 }
 
+function pushTrace(kind){
+  return new Promise(resolve=>{
+    setTimeout(resolve,1000);
+    let req;try{req=indexedDB.open('dalil-push-trace',1);}catch(e){resolve();return;}
+    req.onupgradeneeded=()=>req.result.createObjectStore('events',{autoIncrement:true});
+    req.onerror=()=>resolve();
+    req.onsuccess=()=>{const db=req.result;try{
+      const tx=db.transaction('events','readwrite'),store=tx.objectStore('events');
+      store.add({kind,at:new Date().toISOString()});
+      const keys=store.getAllKeys();keys.onsuccess=()=>keys.result.slice(0,Math.max(0,keys.result.length-12)).forEach(k=>store.delete(k));
+      tx.oncomplete=()=>{db.close();resolve();};tx.onerror=()=>{db.close();resolve();};
+    }catch(e){db.close();resolve();}};
+  });
+}
+
 /* ---------- push subscribe ---------- */
 async function subscribePush(ask=true){
   if(!('Notification' in window)) return setPushUI('unsupported');
@@ -248,7 +263,7 @@ async function subscribePush(ask=true){
     await authReady;
     await db.collection('pushTokens').doc(token).set({
       uid: auth.currentUser.uid,
-      at: firebase.firestore.FieldValue.serverTimestamp(), ua: navigator.userAgent.slice(0,100)+' Dalil/14'
+      at: firebase.firestore.FieldValue.serverTimestamp(), ua: navigator.userAgent.slice(0,100)+' Dalil/15'
     });
     const previous=localStorage.getItem('dalil_baladi_push');
     if(previous && previous!==token){await db.collection('pushTokens').doc(previous).delete().catch(()=>{});}
@@ -287,9 +302,12 @@ function setPushUI(state){
 function initPushUI(){
   if('Notification' in window && firebase.messaging.isSupported()){
     firebase.messaging().onMessage(async payload=>{
-      if(Notification.permission!=='granted') return;
-      const reg=await navigator.serviceWorker.ready; const d=payload.data||{};
-      reg.showNotification(d.title||'دليل بلدي',{body:d.body||'',icon:'icon-192.png',dir:'rtl',data:{itemId:d.itemId||'',itemType:d.itemType||''}});
+      await pushTrace('foreground-sdk');
+      if(Notification.permission!=='granted'){await pushTrace('foreground-permission-denied');return;}
+      try{const reg=await navigator.serviceWorker.ready; const d=payload.data||{};
+        await reg.showNotification(d.title||payload.notification?.title||'دليل بلدي',{body:d.body||payload.notification?.body||'',icon:'icon-192.png',dir:'rtl',data:{itemId:d.itemId||'',itemType:d.itemType||''}});
+        await pushTrace('foreground-display-accepted');
+      }catch(e){await pushTrace('foreground-display-error');}
     });
   }
   const btn = document.getElementById('pushBell');
@@ -305,16 +323,24 @@ function initPushUI(){
 }
 
 async function pushDiagnostic(){
-  const lines=['نسخة الصفحة: 14'];
+  const lines=['نسخة الصفحة: 15'];
   const permission=typeof Notification==='undefined'?'unsupported':Notification.permission;
   lines.push('إذن المتصفح: '+({granted:'مسموح',denied:'مرفوض',default:'لم يتم الاختيار',unsupported:'غير مدعوم'}[permission]));
   try{
     const reg=await navigator.serviceWorker.getRegistration();
     lines.push('خدمة التطبيق: '+(reg?.active?'مفعلة':'غير مفعلة'));
+    if(reg?.active){const version=await new Promise(resolve=>{const ch=new MessageChannel();ch.port1.onmessage=e=>resolve(e.data);reg.active.postMessage('DALIL_VERSION',[ch.port2]);setTimeout(()=>resolve('غير مؤكدة'),1200);});lines.push('نسخة خدمة الاستقبال: '+version);}
     const subscription=reg?await reg.pushManager.getSubscription():null;
     lines.push('اشتراك الجهاز: '+(subscription?'موجود':'غير موجود'));
+    if(subscription?.options?.applicationServerKey){const key=btoa(String.fromCharCode(...new Uint8Array(subscription.options.applicationServerKey))).replace(/\+/g,'-').replace(/\//g,'_').replace(/=+$/,'');lines.push('مفتاح الاشتراك: '+(key===VAPID_KEY?'مطابق':'غير مطابق'));}
     lines.push('التسجيل مع الإدارة: '+(document.getElementById('pushBell').dataset.state==='on'?'تم التحقق منه الآن':'لم يتم التحقق منه'));
   }catch(e){lines.push('الفحص لم يكتمل: '+e.message);}
+  const events=await new Promise(resolve=>{setTimeout(()=>resolve(null),1500);let r;try{r=indexedDB.open('dalil-push-trace',1);}catch(e){resolve(null);return;}r.onupgradeneeded=()=>r.result.createObjectStore('events',{autoIncrement:true});r.onerror=()=>resolve(null);r.onsuccess=()=>{const d=r.result;try{const tx=d.transaction('events','readonly'),q=tx.objectStore('events').getAll();q.onsuccess=()=>{resolve(q.result);d.close();};q.onerror=()=>{resolve(null);d.close();};}catch(e){resolve(null);d.close();}};});
+  lines.push('سجل الاستقبال البعيد على هذا الجهاز فقط:');
+  const labels={'push-event':'وصل حدث دفع إلى الجهاز','background-sdk':'استلمه معالج الخلفية','background-display-observed':'وُجد إشعار الإرسال في قائمة النظام','background-display-unknown':'لم يؤكد الفحص وجود إشعار النظام','display-query-unavailable':'تعذر فحص قائمة إشعارات النظام','background-display-accepted':'قُبل طلب العرض بالخلفية','background-display-error':'فشل طلب العرض بالخلفية','foreground-sdk':'استلمه معالج الصفحة','foreground-permission-denied':'الإذن مرفوض أثناء الاستقبال','foreground-display-accepted':'قُبل طلب العرض بالصفحة','foreground-display-error':'فشل طلب العرض بالصفحة'};
+  if(events===null)lines.push('السجل غير متاح');
+  else if(!events.length)lines.push('لم يُسجل استقبال بعيد منذ إضافة هذا الفحص. لا يشمل المحاولات السابقة أو الاختبار المحلي.');
+  else events.slice(-6).forEach(e=>lines.push(new Date(e.at).toLocaleTimeString('ar-EG')+' · '+(labels[e.kind]||'حدث استقبال')));
   document.getElementById('pushDiagnosticText').textContent=lines.join('\n');
 }
 function initPushDiagnostic(){
