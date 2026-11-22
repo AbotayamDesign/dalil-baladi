@@ -62,7 +62,7 @@ function renderOverlay(){
   const newsItems = [...fsNews.values()].sort((a,b)=>((b.createdAt&&b.createdAt.seconds)||0)-((a.createdAt&&a.createdAt.seconds)||0));
   const newsHTML = newsItems.map(n=>postCard({
     id:n.itemId||('news-'+n.fsId), title:n.sourceTitle||'دليل بلدي', sub:(n.sub||'')+(n.date?' · '+n.date:''),
-    headline:n.title||'', text:n.text||'', url:n.url||'', demo:false
+    headline:n.title||'', text:n.text||'', url:n.url||'', srcNote:n.srcNote||'', imageData:n.imageData||'', demo:false
   }).replace('article class="card"','article class="card fs-card"')).join('');
   if(newsEl) newsEl.insertAdjacentHTML('afterbegin', newsHTML);
   if(homeEl) homeEl.insertAdjacentHTML('afterbegin', newsHTML);
@@ -71,7 +71,7 @@ function renderOverlay(){
   if(shopsEl && fsShops.size){
     const shopHTML = [...fsShops.values()].map(s=>postCard({
       id:'shop-'+s.fsId, title:s.name||'', sub:(s.category||'')+' · الخشاشنه والمرساه',
-      text:(s.desc||''),
+      text:(s.desc||''), imageData:s.imageData||'',
       contacts: (typeof shopContactsHTML==='function') ? shopContactsHTML(s) : '',
       demo:false
     }).replace('article class="card"','article class="card fs-card"')).join('');
@@ -236,9 +236,9 @@ function enhanceCards(){
 }
 
 /* ---------- push subscribe ---------- */
-async function subscribePush(){
+async function subscribePush(ask=true){
   if(!('Notification' in window)) return setPushUI('unsupported');
-  const perm = await Notification.requestPermission();
+  const perm = ask ? await Notification.requestPermission() : Notification.permission;
   if(perm !== 'granted') return setPushUI('denied');
   try{
     const reg = await navigator.serviceWorker.register('sw.js',{updateViaCache:'none'});
@@ -248,19 +248,23 @@ async function subscribePush(){
     await authReady;
     await db.collection('pushTokens').doc(token).set({
       uid: auth.currentUser.uid,
-      at: firebase.firestore.FieldValue.serverTimestamp(), ua: navigator.userAgent.slice(0,120)
+      at: firebase.firestore.FieldValue.serverTimestamp(), ua: navigator.userAgent.slice(0,100)+' Dalil/13'
     });
+    const previous=localStorage.getItem('dalil_baladi_push');
+    if(previous && previous!==token){await db.collection('pushTokens').doc(previous).delete().catch(()=>{});}
     localStorage.setItem('dalil_baladi_push', token);
     setPushUI('on');
   }catch(e){ console.warn('push subscribe', e); setPushUI('error'); }
 }
 async function unsubscribePush(){
-  const token = localStorage.getItem('dalil_baladi_push');
-  if(token){ try{ await db.collection('pushTokens').doc(token).delete(); }catch(e){ console.warn('unsub', e); } }
-  try{ await firebase.messaging().deleteToken(); }catch(e){ console.warn('push delete',e); }
-  localStorage.removeItem('dalil_baladi_push');
-  setPushUI('off');
+  const token=localStorage.getItem('dalil_baladi_push');
+  try{
+    await firebase.messaging().deleteToken();
+    if(token)await db.collection('pushTokens').doc(token).delete().catch(e=>console.warn('stale subscription cleanup',e));
+    localStorage.removeItem('dalil_baladi_push');setPushUI('off');
+  }catch(e){console.warn('unsubscribe failed',e);setPushUI('error');}
 }
+
 function setPushUI(state){
   const btn = document.getElementById('pushBell');
   if(!btn) return;
@@ -269,10 +273,12 @@ function setPushUI(state){
     on:   ['🔔','الإشعارات مفعلة — اضغط للإيقاف', true],
     denied:['🔕','الإشعارات مرفوضة من المتصفح', false],
     unsupported:['🔕','المتصفح مش بيدعم الإشعارات', false],
-    error:['🔔','حصل خطأ، جرب تاني', false]
+    error:['🔔','التسجيل لم يكتمل، افتح فحص الإشعارات', false],
+    checking:['⏳','جاري فحص تسجيل الإشعارات',false]
   };
   const [icon,label,on] = map[state]||map.off;
-  btn.textContent = icon;
+  const status={on:'نشطة',off:'غير نشطة',denied:'غير نشطة',unsupported:'غير مدعومة',checking:'جارٍ الفحص',error:'غير مؤكدة'}[state]||'غير مؤكدة';
+  btn.innerHTML='<span aria-hidden="true">'+icon+'</span><small>'+status+'</small>';
   btn.setAttribute('aria-label', label);
   btn.title = label;
   btn.classList.toggle('push-on', !!on);
@@ -288,15 +294,78 @@ function initPushUI(){
   }
   const btn = document.getElementById('pushBell');
   if(!btn) return;
-  setPushUI(localStorage.getItem('dalil_baladi_push') ? 'on' : 'off');
+  const saved=localStorage.getItem('dalil_baladi_push');
+  if(saved && typeof Notification!=='undefined' && Notification.permission==='granted'){setPushUI('checking');subscribePush(false);}
+  else setPushUI(typeof Notification!=='undefined' && Notification.permission==='denied'?'denied':'off');
   btn.addEventListener('click', ()=>{
     const st = btn.dataset.state;
+    if(st==='checking')return;
     if(st === 'on') unsubscribePush(); else subscribePush();
   });
 }
 
+async function pushDiagnostic(){
+  const lines=['نسخة الصفحة: 13'];
+  const permission=typeof Notification==='undefined'?'unsupported':Notification.permission;
+  lines.push('إذن المتصفح: '+({granted:'مسموح',denied:'مرفوض',default:'لم يتم الاختيار',unsupported:'غير مدعوم'}[permission]));
+  try{
+    const reg=await navigator.serviceWorker.getRegistration();
+    lines.push('خدمة التطبيق: '+(reg?.active?'مفعلة':'غير مفعلة'));
+    const subscription=reg?await reg.pushManager.getSubscription():null;
+    lines.push('اشتراك الجهاز: '+(subscription?'موجود':'غير موجود'));
+    lines.push('التسجيل مع الإدارة: '+(document.getElementById('pushBell').dataset.state==='on'?'تم التحقق منه الآن':'لم يتم التحقق منه'));
+  }catch(e){lines.push('الفحص لم يكتمل: '+e.message);}
+  document.getElementById('pushDiagnosticText').textContent=lines.join('\n');
+}
+function initPushDiagnostic(){
+ const modal=document.getElementById('pushDiagnosticModal');
+ document.getElementById('pushDiagnosticOpen').addEventListener('click',()=>{modal.classList.add('show');pushDiagnostic();});
+ document.getElementById('pushDiagnosticClose').addEventListener('click',()=>modal.classList.remove('show'));
+ document.getElementById('pushLocalTest').addEventListener('click',async()=>{
+  const status=document.getElementById('pushLocalResult');
+  if(typeof Notification==='undefined'||Notification.permission!=='granted'){status.textContent='المتصفح لا يسمح بعرض الإشعارات الآن. هذا ليس اختبار إرسال من الإدارة.';return;}
+  try{const reg=await navigator.serviceWorker.ready;await reg.showNotification('اختبار محلي - دليل بلدي',{body:'ده اختبار عرض من موبايلك فقط، مش إشعار مرسل من الإدارة.',icon:'icon-192.png',dir:'rtl',tag:'dalil-local-check'});status.textContent='المتصفح قبل طلب العرض المحلي. هل ظهر على الهاتف؟';}
+  catch(e){status.textContent='العرض المحلي لم يكتمل: '+e.message;}
+ });
+}
+
 /* ---------- admin ---------- */
 function isAdmin(user){ return user && user.uid === ADMIN_UID; }
+
+async function adminPhotoPatch(f){
+  if(f.elements.namedItem('removePhoto')?.checked) return {imageData:''};
+  const file=f.elements.namedItem('photo')?.files[0];
+  if(!file)return {};
+  if(!['image/jpeg','image/png','image/webp'].includes(file.type))throw new Error('اختار صورة JPG أو PNG أو WebP.');
+  if(file.size>8*1024*1024)throw new Error('اختار صورة أقل من 8 ميجابايت.');
+  const url=URL.createObjectURL(file);
+  try{
+    const img=await new Promise((resolve,reject)=>{const im=new Image();im.onload=()=>resolve(im);im.onerror=()=>reject(new Error('الصورة لم تفتح، اختار صورة أخرى.'));im.src=url;});
+    let max=1280, imageData='';
+    for(let attempt=0;attempt<5;attempt++){
+      const scale=Math.min(1,max/Math.max(img.width,img.height));
+      const canvas=document.createElement('canvas');canvas.width=Math.max(1,Math.round(img.width*scale));canvas.height=Math.max(1,Math.round(img.height*scale));
+      const ctx=canvas.getContext('2d');ctx.fillStyle='#fff';ctx.fillRect(0,0,canvas.width,canvas.height);ctx.drawImage(img,0,0,canvas.width,canvas.height);
+      imageData=canvas.toDataURL('image/jpeg',0.76-attempt*0.07);
+      if(imageData.length<=210000)return {imageData};
+      max=Math.round(max*0.75);
+    }
+    throw new Error('الصورة كبيرة بعد الضغط، اختار صورة أبسط.');
+  }finally{URL.revokeObjectURL(url);}
+}
+async function saveAdminForm(f,coll,values){
+  const button=f.querySelector('button[type=submit]'),notice=f.querySelector('.ok');
+  button.disabled=true;notice.textContent='جاري الحفظ...';
+  try{
+    const editing=f.dataset.editId;
+    const ref=editing?db.collection(coll).doc(editing):db.collection(coll).doc();
+    const data={...values,...await adminPhotoPatch(f),published:true,notified:!!editing};
+    if(!editing)data.createdAt=firebase.firestore.FieldValue.serverTimestamp();
+    await ref.set(data,{merge:true});
+    f.reset();delete f.dataset.editId;button.textContent='نشر';notice.style.color='#218b30';notice.textContent='اتحفظ ✓';
+  }catch(error){notice.style.color='#c40020';notice.textContent=error.message||'الحفظ لم يكتمل، جرب تاني.';}
+  finally{button.disabled=false;}
+}
 
 function initAdmin(){
   const entry = document.getElementById('adminEntry');
@@ -342,37 +411,14 @@ function initAdmin(){
     document.getElementById('adminLoginBox').style.display = 'block';
   });
 
-  // publish forms
-  document.getElementById('publishNews').addEventListener('submit', async e=>{
-    e.preventDefault();
-    const f = e.target;
-    const el = n => f.elements.namedItem(n).value.trim();
-    const editing = f.dataset.editId;
-    const ref = editing ? db.collection('news').doc(editing) : db.collection('news').doc();
-    await ref.set({
-      title: el('title'), text: el('text'),
-      date: el('date'), url: el('url'),
-      published: true, notified: !!editing,
-      createdAt: firebase.firestore.FieldValue.serverTimestamp()
-    }, {merge:true});
-    f.reset(); delete f.dataset.editId; f.querySelector('button[type=submit]').textContent = 'نشر'; f.querySelector('.ok').textContent = 'اتحفظ ✓';
-    setTimeout(()=>f.querySelector('.ok').textContent='', 3000);
+  // Owner-only content and photo publishing.
+  document.getElementById('publishNews').addEventListener('submit',async e=>{
+    e.preventDefault();const f=e.target;const value=n=>f.elements.namedItem(n).value.trim();
+    await saveAdminForm(f,'news',{title:value('title'),text:value('text'),date:value('date'),url:value('url')});
   });
-  document.getElementById('publishShop').addEventListener('submit', async e=>{
-    e.preventDefault();
-    const f = e.target;
-    const el = n => f.elements.namedItem(n).value.trim();
-    const editing = f.dataset.editId;
-    const ref = editing ? db.collection('shops').doc(editing) : db.collection('shops').doc();
-    await ref.set({
-      name: el('name'), category: el('category'),
-      desc: el('desc'), phone: el('phone'),
-      whatsapp: el('whatsapp'), map: el('map'),
-      published: true, notified: !!editing,
-      createdAt: firebase.firestore.FieldValue.serverTimestamp()
-    }, {merge:true});
-    f.reset(); delete f.dataset.editId; f.querySelector('button[type=submit]').textContent = 'نشر'; f.querySelector('.ok').textContent = 'اتحفظ ✓';
-    setTimeout(()=>f.querySelector('.ok').textContent='', 3000);
+  document.getElementById('publishShop').addEventListener('submit',async e=>{
+    e.preventDefault();const f=e.target;const value=n=>f.elements.namedItem(n).value.trim();
+    await saveAdminForm(f,'shops',{name:value('name'),category:value('category'),desc:value('desc'),phone:value('phone'),whatsapp:value('whatsapp'),map:value('map')});
   });
 }
 
@@ -419,7 +465,7 @@ document.addEventListener('click', async e=>{
       const doc = await db.collection(edit.dataset.coll).doc(edit.dataset.id).get();
       const f = document.getElementById(edit.dataset.coll==='news'?'publishNews':'publishShop');
       const data=doc.data();
-      [...f.elements].forEach(el=>{if(el.name && data[el.name]!=null) el.value=data[el.name];});
+      [...f.elements].forEach(el=>{if(el.type!=='file' && el.type!=='checkbox' && el.name && data[el.name]!=null) el.value=data[el.name];});
       f.dataset.editId=doc.id; f.querySelector('button[type=submit]').textContent='حفظ التعديل';
       f.scrollIntoView({block:'start'});
     }
@@ -437,6 +483,7 @@ window.addEventListener('load', ()=>{
   setTimeout(renderOverlay, 1200);
   setTimeout(renderOverlay, 3500);
   initPushUI();
+  initPushDiagnostic();
   initAdmin();
 });
 
