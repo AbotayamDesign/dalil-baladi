@@ -283,6 +283,8 @@ function actionBar(item){
 
 function safeText(value){return String(value==null?'':value).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));}
 function safeWebURL(value){return /^https?:\/\//i.test(String(value||''))?safeText(value):'';}
+function validPostImages(item){const list=Array.isArray(item.images)?item.images:[item.imageData];return list.filter(x=>/^data:image\/jpeg;base64,[A-Za-z0-9+/=]+$/.test(x||'')).slice(0,12);}
+function postGallery(item){const images=validPostImages(item);if(!images.length)return '';return `<div class="post-gallery" style="display:flex;overflow-x:auto;scroll-snap-type:x mandatory;background:#f0f2f5;direction:rtl">${images.map((src,i)=>`<figure style="margin:0;flex:0 0 100%;scroll-snap-align:start"><img src="${src}" alt="صورة ${i+1} من ${images.length} في المنشور الأصلي" loading="lazy" style="display:block;width:100%;height:auto;max-height:560px;object-fit:contain"><figcaption style="text-align:center;padding:6px;color:#4b5563;font-size:13px">${i+1} / ${images.length}${images.length>1?' · اسحب لمشاهدة باقي الصور':''}</figcaption></figure>`).join('')}</div>`;}
 function postCard(item,opts){
   opts=opts||{};
   const demo=item.demo?'<span class="badge-demo">مثال تجريبي</span>':'';
@@ -298,7 +300,7 @@ function postCard(item,opts){
       </div>
     </div>
     <div class="post-text">${headline}${safeText(item.text)}${srcNote}</div>
-    ${/^data:image\/jpeg;base64,[A-Za-z0-9+/=]+$/.test(item.imageData||'')?`<img class="post-photo" src="${item.imageData}" alt="صورة مرفقة بالمنشور" loading="lazy" style="display:block;width:100%;max-height:520px;object-fit:contain;background:#f0f2f5">`:''}
+    ${postGallery(item)}
     ${item.contacts||''}
     ${link}
     ${actionBar(item)}
@@ -365,7 +367,7 @@ window.dalilCachedFeed=publicFeedRead();
 function renderCachedFeed(){
  const c=window.dalilCachedFeed;
  if(!c.news.length&&!c.shops.length)return;
- const html=c.news.map(n=>postCard({id:n.itemId||('news-'+n.fsId),title:n.sourceTitle||'دليل بلدي',sub:(n.sub||'')+(n.date?' · '+n.date:''),headline:n.title||'',text:n.text||'',url:n.url||'',srcNote:n.srcNote||'',imageData:n.imageData||'',demo:false}).replace('article class="card"','article class="card fs-card"')).join('');
+ const html=c.news.map(n=>postCard({id:n.itemId||('news-'+n.fsId),title:n.sourceTitle||'دليل بلدي',sub:(n.sub||'')+(n.date?' · '+n.date:''),headline:n.title||'',text:n.text||'',url:n.url||'',srcNote:n.srcNote||'',imageData:n.imageData||'',images:n.images||[],demo:false}).replace('article class="card"','article class="card fs-card"')).join('');
  document.getElementById('homeNews').innerHTML=html;
  document.getElementById('newsList').innerHTML=html;
  document.getElementById('feedStatus').textContent='آخر أخبار محفوظة على الجهاز؛ جاري التحديث...';
@@ -488,11 +490,11 @@ renderNews();
       <div class="admin-sec">📰 نشر خبر جديد</div>
       <form id="publishNews">
         <input type="text" name="title" maxlength="120" placeholder="عنوان الخبر" required>
-        <textarea name="text" maxlength="2000" placeholder="نص الخبر (اختياري مع صورة)"></textarea>
+        <textarea name="text" maxlength="12000" placeholder="نص الخبر (اختياري مع صورة)"></textarea>
         <input type="text" name="date" maxlength="40" placeholder="التاريخ (مثال: 22 نوفمبر 2026)">
         <input type="url" name="url" placeholder="رابط المصدر (اختياري)">
         <label style="display:block;font-size:13px;margin:8px 0">صورة اختيارية (JPG أو PNG أو WebP، يتم ضغطها)
-        <input type="file" name="photo" accept="image/jpeg,image/png,image/webp" aria-label="اختيار صورة"></label>
+        <input type="file" name="galleryImport" accept="application/json" aria-label="استيراد صور منشور أصلي (JSON)"><input type="file" name="photo" accept="image/jpeg,image/png,image/webp" aria-label="اختيار صورة"></label>
         <label style="display:block;font-size:13px"><input type="checkbox" name="removePhoto" style="width:auto"> حذف الصورة الحالية عند التعديل</label>
         <label style="display:block;font-size:13px"><input type="checkbox" name="draft" style="width:auto"> حفظ كمسودة خاصة، بدون نشر أو إشعار</label>
         <button class="primary" type="submit">حفظ الخبر</button><span class="ok"></span>
@@ -525,6 +527,6 @@ renderNews();
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-messaging-compat.js"></script>
-<script src="app-firebase.js?v=20"></script>
+<script src="app-firebase.js?v=21"></script>
 </body>
 </html>
