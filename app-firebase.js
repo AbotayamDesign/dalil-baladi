@@ -357,7 +357,9 @@ function initPushUI(){
   });
 }
 
+let diagnosticReadVersion=0;
 async function pushDiagnostic(){
+  const readVersion=++diagnosticReadVersion;
   const lines=['نسخة الصفحة: 17'];
   const permission=typeof Notification==='undefined'?'unsupported':Notification.permission;
   lines.push('إذن المتصفح: '+({granted:'مسموح',denied:'مرفوض',default:'لم يتم الاختيار',unsupported:'غير مدعوم'}[permission]));
@@ -380,10 +382,13 @@ async function pushDiagnostic(){
   if(events===null)lines.push('السجل غير متاح');
   else if(!events.length)lines.push('لم يُسجل استقبال بعيد منذ إضافة هذا الفحص. لا يشمل المحاولات السابقة أو الاختبار المحلي.');
   else events.slice(-6).forEach(e=>lines.push(new Date(e.at).toLocaleTimeString('ar-EG')+' · '+(labels[e.kind]||'حدث استقبال')));
-  document.getElementById('pushDiagnosticText').textContent=lines.join('\n');
+  if(readVersion===diagnosticReadVersion)document.getElementById('pushDiagnosticText').textContent=lines.join('\n');
 }
 function initPushDiagnostic(){
  const modal=document.getElementById('pushDiagnosticModal');
+ const refresh=()=>{if(modal.classList.contains('show'))pushDiagnostic();};
+ auth.onAuthStateChanged(refresh);
+ navigator.serviceWorker?.addEventListener('controllerchange',refresh);
  const diagnosticOnly=new URLSearchParams(location.search).get('diagnostic')==='1';
  if(diagnosticOnly){document.getElementById('pushLocalTest').hidden=true;document.getElementById('pushLocalResult').hidden=true;document.getElementById('pushLocalTest').previousElementSibling.hidden=true;modal.classList.add('show');pushDiagnostic();}
  document.getElementById('pushDiagnosticOpen').addEventListener('click',()=>{modal.classList.add('show');pushDiagnostic();});
