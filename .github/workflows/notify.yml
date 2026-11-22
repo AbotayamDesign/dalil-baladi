@@ -86,7 +86,7 @@ jobs:
             }
             async function send(token, title, body, itemId, itemType) {
               const res = await fetch(FCM, { method: 'POST', headers: H, body: JSON.stringify({
-                message: { token, notification: {title, body}, webpush: {notification:{icon:'https://abotayamdesign.github.io/dalil-baladi/icon-192.png',dir:'rtl',lang:'ar'},fcm_options:{link:'https://abotayamdesign.github.io/dalil-baladi/#'+itemType+'-'+itemId}}, data: { title, body, itemId, itemType } }
+                message: { token, notification: {title, body}, webpush: {headers:{Urgency:'high'},notification:{icon:'https://abotayamdesign.github.io/dalil-baladi/icon-192.png',dir:'rtl',lang:'ar'},fcm_options:{link:'https://abotayamdesign.github.io/dalil-baladi/#'+itemType+'-'+itemId}}, data: { title, body, itemId, itemType } }
               })});
               if (res.ok) return 'ok';
               const j = await res.json().catch(() => ({}));
