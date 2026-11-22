@@ -18,6 +18,13 @@ firebase.initializeApp(firebaseConfig);
 const auth = firebase.auth();
 const db = firebase.firestore();
 
+/* Anonymous auth gives every device a stable, unforgeable uid used for like ownership. */
+let uid = null;
+const authReady = new Promise(res=>{
+  auth.onAuthStateChanged(u=>{ uid = u ? u.uid : null; res(); });
+});
+auth.signInAnonymously().catch(err=>console.warn('anon auth', err));
+
 /* ---------- device id (for own-like toggle) ---------- */
 function deviceId(){
   let id = localStorage.getItem('dalil_baladi_device');
@@ -64,7 +71,9 @@ function renderOverlay(){
   if(shopsEl && fsShops.size){
     const shopHTML = [...fsShops.values()].map(s=>postCard({
       id:'shop-'+s.fsId, title:s.name||'', sub:(s.category||'')+' · الخشاشنه والمرساه',
-      text:(s.desc||'')+(s.phone?'\n📞 '+s.phone:''), demo:false
+      text:(s.desc||''),
+      contacts: (typeof shopContactsHTML==='function') ? shopContactsHTML(s) : '',
+      demo:false
     }).replace('article class="card"','article class="card fs-card"')).join('');
     shopsEl.insertAdjacentHTML('afterbegin', shopHTML);
   }
@@ -91,8 +100,9 @@ function updateLikeUI(itemId){
   });
 }
 async function toggleLike(itemId){
+  await authReady;
   const likes = getLikes();
-  const ref = db.collection('likes').doc(itemId).collection('devices').doc(deviceId());
+  const ref = db.collection('likes').doc(itemId).collection('devices').doc(uid || deviceId());
   try{
     if(likes[itemId]){ await ref.delete(); delete likes[itemId]; }
     else { await ref.set({at: firebase.firestore.FieldValue.serverTimestamp()}); likes[itemId]=1; }
@@ -102,6 +112,11 @@ async function toggleLike(itemId){
 }
 
 /* ---------- comments ---------- */
+/* Profanity/insult blocklist chosen by the admin (owner delegated the choice).
+   Enforced again in Firestore rules, so bypassing the client does not help. */
+const BANNED_WORDS = ['خول','متناك','شرموط','شرموطة','قحبة','قحبه','عرص','منيوك','كسم','زب','طيز','نيك','عاهرة','دعارة','لعنة'];
+const BANNED_RE = new RegExp('(^|[^\\u0621-\\u064A])(' + BANNED_WORDS.join('|') + ')(?![\\u0621-\\u064A])');
+function hasBanned(s){ return BANNED_RE.test(s); }
 function commentThreadHTML(itemId){
   return '<div class="comment-thread" data-item="'+esc(itemId)+'">' +
     '<div class="comment-list"></div>' +
@@ -110,7 +125,7 @@ function commentThreadHTML(itemId){
       '<input type="text" name="text" maxlength="500" placeholder="اكتب تعليقًا..." required>' +
       '<button type="submit">إرسال</button>' +
     '</form>' +
-    '<div class="comment-note">التعليقات بتتنشر بعد مراجعة الإدارة.</div>' +
+    '<div class="comment-note">التعليقات بتتنشر فورًا، والكلام المسيء بيترفض تلقائيًا.</div>' +
   '</div>';
 }
 function loadComments(itemId, listEl){
@@ -131,20 +146,53 @@ function bindCommentForms(root){
       const itemId = form.closest('.comment-thread').dataset.item;
       const name = form.elements.namedItem('name').value.trim();
       const text = form.elements.namedItem('text').value.trim();
+      const note = form.closest('.comment-thread').querySelector('.comment-note');
       if(!name || !text) return;
+      if(hasBanned(name) || hasBanned(text)){
+        note.textContent = 'التعليق فيه كلام مسيء، مش هيتحق منه النشر.';
+        return;
+      }
       try{
+        await authReady;
         await db.collection('comments').add({
-          itemId, name, text, approved:false,
+          itemId, name, text, approved:true,
           createdAt: firebase.firestore.FieldValue.serverTimestamp()
         });
         form.elements.namedItem('text').value='';
-        form.closest('.comment-thread').querySelector('.comment-note').textContent = 'اتبعت! هيظهر بعد موافقة الإدارة.';
-      }catch(err){ console.warn('comment failed', err); }
+        note.textContent = 'اتنشر تعليقك ✓';
+      }catch(err){ console.warn('comment failed', err); note.textContent = 'حصل خطأ، جرب تاني.'; }
     });
   });
 }
 
-/* Replace the disabled "تعليق (قريبًا)" button with a working toggle, likes with shared toggle. */
+/* Shared like count, comment count and share count per item. */
+const commentCounts = new Map(), shareCounts = new Map();
+function watchCommentsCount(itemId){
+  db.collection('comments').where('itemId','==',itemId).where('approved','==',true)
+    .onSnapshot(snap=>{
+      commentCounts.set(itemId, snap.size);
+      const n = snap.size;
+      document.querySelectorAll('.comment-btn[data-id="'+CSS.escape(itemId)+'"] span')
+        .forEach(s=>{ s.textContent = n ? 'تعليق ('+n+')' : 'تعليق'; });
+    }, ()=>{});
+}
+function watchShares(itemId){
+  db.collection('shares').doc(itemId).collection('devices').onSnapshot(snap=>{
+    shareCounts.set(itemId, snap.size);
+    const n = snap.size;
+    document.querySelectorAll('.share-btn[data-id="'+CSS.escape(itemId)+'"] span')
+      .forEach(s=>{ s.textContent = n ? 'مشاركة ('+n+')' : 'مشاركة'; });
+  }, ()=>{});
+}
+async function recordShare(itemId){
+  try{
+    await authReady;
+    await db.collection('shares').doc(itemId).collection('devices').doc(uid || deviceId())
+      .set({at: firebase.firestore.FieldValue.serverTimestamp()});
+  }catch(e){ console.warn('share count failed', e); }
+}
+
+/* Wire working like/comment/share buttons with shared counts. */
 function enhanceCards(){
   document.querySelectorAll('article.card').forEach(card=>{
     if(card.__enhanced) return; card.__enhanced = true;
@@ -157,18 +205,15 @@ function enhanceCards(){
     clone.addEventListener('click', ()=>toggleLike(itemId));
     watchLikes(itemId);
     // comments
-    const disabled = card.querySelector('.action.disabled');
-    if(disabled){
-      const btn = document.createElement('button');
-      btn.className = 'action';
-      btn.innerHTML = disabled.innerHTML.replace(' (قريبًا)','');
-      disabled.parentNode.replaceChild(btn, disabled);
+    const cbtn = card.querySelector('.comment-btn');
+    if(cbtn){
+      watchCommentsCount(itemId);
       const thread = document.createElement('div');
       thread.innerHTML = commentThreadHTML(itemId);
       const threadEl = thread.firstElementChild;
       threadEl.style.display = 'none';
       card.appendChild(threadEl);
-      btn.addEventListener('click', ()=>{
+      cbtn.addEventListener('click', ()=>{
         const open = threadEl.style.display !== 'none';
         threadEl.style.display = open ? 'none' : 'block';
         if(!open && !threadEl.__loaded){
@@ -177,6 +222,12 @@ function enhanceCards(){
           bindCommentForms(threadEl);
         }
       });
+    }
+    // shared share count: count button presses honestly (a press, not a completed send)
+    const sbtn = card.querySelector('.share-btn');
+    if(sbtn){
+      watchShares(itemId);
+      sbtn.addEventListener('click', ()=>recordShare(itemId));
     }
     // remove the local-only note
     const note = card.querySelector('.local-note');
@@ -208,21 +259,24 @@ async function unsubscribePush(){
   setPushUI('off');
 }
 function setPushUI(state){
-  const btn = document.getElementById('pushBtn');
+  const btn = document.getElementById('pushBell');
   if(!btn) return;
   const map = {
-    off:  ['🔔','فعّل الإشعارات'],
-    on:   ['🔕','أوقف الإشعارات'],
-    denied:['🔔','الإشعارات مرفوضة من المتصفح'],
-    unsupported:['🔔','المتصفح مش بيدعم الإشعارات'],
-    error:['🔔','حصل خطأ، جرب تاني']
+    off:  ['🔔','فعّل الإشعارات', false],
+    on:   ['🔔','الإشعارات مفعلة — اضغط للإيقاف', true],
+    denied:['🔕','الإشعارات مرفوضة من المتصفح', false],
+    unsupported:['🔕','المتصفح مش بيدعم الإشعارات', false],
+    error:['🔔','حصل خطأ، جرب تاني', false]
   };
-  const [icon,label] = map[state]||map.off;
-  btn.innerHTML = '<span class="push-icon">'+icon+'</span> '+label;
+  const [icon,label,on] = map[state]||map.off;
+  btn.textContent = icon;
+  btn.setAttribute('aria-label', label);
+  btn.title = label;
+  btn.classList.toggle('push-on', !!on);
   btn.dataset.state = state;
 }
 function initPushUI(){
-  const btn = document.getElementById('pushBtn');
+  const btn = document.getElementById('pushBell');
   if(!btn) return;
   setPushUI(localStorage.getItem('dalil_baladi_push') ? 'on' : 'off');
   btn.addEventListener('click', ()=>{
@@ -273,6 +327,7 @@ function initAdmin(){
 
   document.getElementById('adminLogout').addEventListener('click', async ()=>{
     await auth.signOut();
+    auth.signInAnonymously().catch(()=>{});
     panel.style.display = 'none';
     document.getElementById('adminLoginBox').style.display = 'block';
   });
@@ -298,6 +353,7 @@ function initAdmin(){
     await db.collection('shops').add({
       name: el('name'), category: el('category'),
       desc: el('desc'), phone: el('phone'),
+      whatsapp: el('whatsapp'), map: el('map'),
       published: true, notified: false,
       createdAt: firebase.firestore.FieldValue.serverTimestamp()
     });
@@ -307,16 +363,15 @@ function initAdmin(){
 }
 
 function loadAdminData(){
-  // pending comments
-  db.collection('comments').where('approved','==',false).orderBy('createdAt','desc').limit(50)
+  // latest comments across items; admin can delete anything that slipped through
+  db.collection('comments').orderBy('createdAt','desc').limit(50)
     .onSnapshot(snap=>{
       document.getElementById('pendingComments').innerHTML = snap.docs.map(d=>{
         const c = d.data();
         return '<div class="admin-row" data-id="'+d.id+'">' +
           '<div><b>'+esc(c.name)+'</b> '+esc(c.text)+' <small>('+esc(c.itemId)+')</small></div>' +
-          '<div><button class="approve" data-id="'+d.id+'">موافقة</button>' +
-          '<button class="reject" data-id="'+d.id+'">حذف</button></div></div>';
-      }).join('') || '<div class="empty-msg">مفيش تعليقات بانتظار المراجعة.</div>';
+          '<div><button class="reject" data-id="'+d.id+'">حذف</button></div></div>';
+      }).join('') || '<div class="empty-msg">مفيش تعليقات لسه.</div>';
     });
   // manage content
   db.collection('news').orderBy('createdAt','desc').limit(30).onSnapshot(snap=>{
