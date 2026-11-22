@@ -152,7 +152,6 @@
     <p>خاصية التثبيت المباشر لسه تحت التجربة ومش متأكدة على كل الأجهزة. لو ضغطت وظهرلك تأكيد تثبيت يبقى نجحت؛ لو مظهرش، هتظهرلك خطوات الإضافة اليدوية للشاشة الرئيسية.</p>
     <button class="install-btn" id="installBtn">تجربة التثبيت</button>
   </div>
-  </div>
   <div id="homeNews"></div>
 </div>
 
@@ -273,16 +272,19 @@ function renderChips(cats){
     el.appendChild(b);
   });
 }
+function shopCardHTML(s){
+  return postCard({
+    id:'shop-'+s.id, title:s.name, sub:s.category+' · الخشاشنه والمرساه',
+    text:(s.desc||'')+'\n📞 '+s.phone,
+    demo:true
+  });
+}
 function renderShops(){
   const q=document.getElementById('searchInput').value.trim();
   const list=SHOPS.filter(s=>(activeCat==='الكل'||s.category===activeCat)&&(!q||s.name.includes(q)||(s.desc||'').includes(q)));
   const el=document.getElementById('shopsList');
   if(!list.length){el.innerHTML='<div class="empty-msg">مفيش نتائج مطابقة للبحث.</div>';return;}
-  el.innerHTML=list.map(s=>postCard({
-    id:'shop-'+s.id, title:s.name, sub:s.category+' · الخشاشنه والمرساه',
-    text:(s.desc||'')+'\n📞 '+s.phone,
-    demo:true
-  })).join('');
+  el.innerHTML=list.map(shopCardHTML).join('');
   bindActions(el);
 }
 document.getElementById('searchInput').addEventListener('input',renderShops);
@@ -295,7 +297,7 @@ function renderNews(){
     renderShops();
     const news=(data.news||[]).map(n=>postCard(n));
     document.getElementById('newsList').innerHTML=news.join('')||'<div class="empty-msg">مفيش أخبار لسه.</div>';
-    document.getElementById('homeNews').innerHTML=news.slice(0,2).join('');
+    document.getElementById('homeNews').innerHTML=news.join('')+SHOPS.map(shopCardHTML).join('');
     bindActions(document.getElementById('newsList'));
     bindActions(document.getElementById('homeNews'));
   }).catch(()=>{
