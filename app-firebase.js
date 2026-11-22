@@ -279,25 +279,32 @@ function pushTrace(kind){
 }
 
 /* ---------- push subscribe ---------- */
+function recordPushRegistration(stage,code){
+  try{localStorage.setItem('dalil_push_registration_check',JSON.stringify({stage,code:code||'',at:new Date().toISOString()}));}catch(e){}
+}
 async function subscribePush(ask=true){
+  let stage='permission';
   if(!('Notification' in window)) return setPushUI('unsupported');
   const perm = ask ? await Notification.requestPermission() : Notification.permission;
   if(perm !== 'granted') return setPushUI('denied');
   try{
+    stage='worker';
     const reg = await navigator.serviceWorker.register('sw.js',{updateViaCache:'none'});
     const messaging = firebase.messaging();
+    stage='token';
     const token = await messaging.getToken({ vapidKey: VAPID_KEY, serviceWorkerRegistration: reg });
-    if(!token) return setPushUI('error');
-    await authReady;
+    if(!token){recordPushRegistration('token','token-unavailable');return setPushUI('error');}
+    stage='auth';await authReady;stage='store';
     await db.collection('pushTokens').doc(token).set({
       uid: auth.currentUser.uid,
-      at: firebase.firestore.FieldValue.serverTimestamp(), ua: navigator.userAgent.slice(0,100)+' Dalil/16'
+      at: firebase.firestore.FieldValue.serverTimestamp(), ua: navigator.userAgent.slice(0,100)+' Dalil/17'
     });
     const previous=localStorage.getItem('dalil_baladi_push');
     if(previous && previous!==token){await db.collection('pushTokens').doc(previous).delete().catch(()=>{});}
     localStorage.setItem('dalil_baladi_push', token);
-    setPushUI('on');
-  }catch(e){ console.warn('push subscribe', e); setPushUI('error'); }
+    recordPushRegistration('verified','');setPushUI('on');
+  }catch(e){const code=String(e.code||e.name||'unknown').replace(/[^a-zA-Z0-9_/-]/g,'').slice(0,80);recordPushRegistration(stage,code);console.warn('push registration failed',stage,code);setPushUI('error');}
+  finally{if(document.getElementById('pushDiagnosticModal')?.classList.contains('show'))pushDiagnostic();}
 }
 async function unsubscribePush(){
   const token=localStorage.getItem('dalil_baladi_push');
@@ -351,7 +358,7 @@ function initPushUI(){
 }
 
 async function pushDiagnostic(){
-  const lines=['نسخة الصفحة: 16'];
+  const lines=['نسخة الصفحة: 17'];
   const permission=typeof Notification==='undefined'?'unsupported':Notification.permission;
   lines.push('إذن المتصفح: '+({granted:'مسموح',denied:'مرفوض',default:'لم يتم الاختيار',unsupported:'غير مدعوم'}[permission]));
   try{
@@ -361,7 +368,10 @@ async function pushDiagnostic(){
     const subscription=reg?await reg.pushManager.getSubscription():null;
     lines.push('اشتراك الجهاز: '+(subscription?'موجود':'غير موجود'));
     if(subscription?.options?.applicationServerKey){const key=btoa(String.fromCharCode(...new Uint8Array(subscription.options.applicationServerKey))).replace(/\+/g,'-').replace(/\//g,'_').replace(/=+$/,'');lines.push('مفتاح الاشتراك: '+(key===VAPID_KEY?'مطابق':'غير مطابق'));}
-    lines.push('التسجيل مع الإدارة: '+(document.getElementById('pushBell').dataset.state==='on'?'تم التحقق منه الآن':'لم يتم التحقق منه'));
+    lines.push('التسجيل مع الإدارة: '+({on:'تم التحقق منه الآن',checking:'جارٍ التحقق الآن'}[document.getElementById('pushBell').dataset.state]||'لم يتم التحقق منه'));
+    lines.push('نوع الجلسة: '+(auth.currentUser?.uid===ADMIN_UID?'إدارة':auth.currentUser?.isAnonymous?'زائر':'غير مؤكدة'));
+    try{const check=JSON.parse(localStorage.getItem('dalil_push_registration_check'));if(check){const stages={permission:'إذن الإشعارات',worker:'تجهيز خدمة الاستقبال',token:'استخراج تسجيل الجهاز',auth:'تسجيل الجلسة',store:'حفظ التسجيل',verified:'تم التحقق'};lines.push('آخر فحص للتسجيل: '+(stages[check.stage]||'غير مكتمل')+(check.code?' · '+check.code:'')+' · '+new Date(check.at).toLocaleTimeString('ar-EG'));}}catch(e){}
+
   }catch(e){lines.push('الفحص لم يكتمل: '+e.message);}
   const events=await new Promise(resolve=>{setTimeout(()=>resolve(null),1500);let r;try{r=indexedDB.open('dalil-push-trace',1);}catch(e){resolve(null);return;}r.onupgradeneeded=()=>r.result.createObjectStore('events',{autoIncrement:true});r.onerror=()=>resolve(null);r.onsuccess=()=>{const d=r.result;try{const tx=d.transaction('events','readonly'),q=tx.objectStore('events').getAll();q.onsuccess=()=>{resolve(q.result);d.close();};q.onerror=()=>{resolve(null);d.close();};}catch(e){resolve(null);d.close();}};});
   lines.push('سجل الاستقبال البعيد على هذا الجهاز فقط:');
@@ -373,6 +383,8 @@ async function pushDiagnostic(){
 }
 function initPushDiagnostic(){
  const modal=document.getElementById('pushDiagnosticModal');
+ const diagnosticOnly=new URLSearchParams(location.search).get('diagnostic')==='1';
+ if(diagnosticOnly){document.getElementById('pushLocalTest').hidden=true;document.getElementById('pushLocalResult').hidden=true;document.getElementById('pushLocalTest').previousElementSibling.hidden=true;modal.classList.add('show');pushDiagnostic();}
  document.getElementById('pushDiagnosticOpen').addEventListener('click',()=>{modal.classList.add('show');pushDiagnostic();});
  document.getElementById('pushDiagnosticClose').addEventListener('click',()=>modal.classList.remove('show'));
  document.getElementById('pushLocalTest').addEventListener('click',async()=>{
