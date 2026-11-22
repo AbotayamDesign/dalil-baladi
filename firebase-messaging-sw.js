@@ -15,6 +15,7 @@ const messaging = firebase.messaging();
 
 // Background message: show a notification that opens the specific item.
 messaging.onBackgroundMessage((payload) => {
+  if(payload.notification) return; // Firebase displays notification payloads in the background.
   const data = payload.data || {};
   const title = data.title || 'دليل بلدي';
   const options = {
@@ -25,7 +26,7 @@ messaging.onBackgroundMessage((payload) => {
     lang: 'ar',
     data: { itemId: data.itemId || '', itemType: data.itemType || '' }
   };
-  self.registration.showNotification(title, options);
+  return self.registration.showNotification(title, options);
 });
 
 self.addEventListener('notificationclick', (event) => {
