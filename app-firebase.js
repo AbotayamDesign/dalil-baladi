@@ -279,32 +279,47 @@ function pushTrace(kind){
 }
 
 /* ---------- push subscribe ---------- */
+let pushRegistrationRunning=false;
 function recordPushRegistration(stage,code){
   try{localStorage.setItem('dalil_push_registration_check',JSON.stringify({stage,code:code||'',at:new Date().toISOString()}));}catch(e){}
 }
 async function subscribePush(ask=true){
-  let stage='permission';
-  if(!('Notification' in window)) return setPushUI('unsupported');
-  const perm = ask ? await Notification.requestPermission() : Notification.permission;
-  if(perm !== 'granted'){recordPushRegistration('permission',perm);return setPushUI('denied');}
+  if(pushRegistrationRunning)return;
+  if(!('Notification' in window))return setPushUI('unsupported');
+  pushRegistrationRunning=true;let stage='permission';setPushUI('checking');
   try{
+    const perm=ask?await Notification.requestPermission():Notification.permission;
+    if(perm!=='granted'){recordPushRegistration('permission',perm);return setPushUI('denied');}
     stage='worker';
-    const reg = await navigator.serviceWorker.register('sw.js',{updateViaCache:'none'});
-    const messaging = firebase.messaging();
-    stage='token';
-    const token = await messaging.getToken({ vapidKey: VAPID_KEY, serviceWorkerRegistration: reg });
-    if(!token){recordPushRegistration('token','token-unavailable');return setPushUI('error');}
-    stage='auth';await authReady;stage='store';
-    await db.collection('pushTokens').doc(token).set({
-      uid: auth.currentUser.uid,
-      at: firebase.firestore.FieldValue.serverTimestamp(), ua: navigator.userAgent.slice(0,100)+' Dalil/17'
-    });
+    const reg=await navigator.serviceWorker.register('sw.js',{updateViaCache:'none'});
+    const messaging=firebase.messaging();
+    stage='token';let token=await messaging.getToken({vapidKey:VAPID_KEY,serviceWorkerRegistration:reg});
+    if(!token)throw Object.assign(new Error('missing token'),{code:'token-unavailable'});
+    await authReady;
+    stage='auth';const registrationUser=auth.currentUser;const registrationUid=registrationUser.uid;
+    const save=()=>{if((auth.currentUser!==registrationUser||auth.currentUser?.uid!==registrationUid))throw Object.assign(new Error('auth session changed'),{code:'auth-session-changed'});return db.collection('pushTokens').doc(token).set({uid:registrationUid,at:firebase.firestore.FieldValue.serverTimestamp(),ua:navigator.userAgent.slice(0,100)+' Dalil/18'});};
+    stage='store';
+    try{await save();}
+    catch(error){
+      if(error.code!=='permission-denied'||registrationUid!==ADMIN_UID||(auth.currentUser!==registrationUser||auth.currentUser?.uid!==registrationUid))throw error;
+      const existing=await db.collection('pushTokens').doc(token).get({source:'server'});
+      const previousOwner=existing.exists?existing.data().uid:null;
+      if(typeof previousOwner!=='string'||!previousOwner||previousOwner===registrationUid||(auth.currentUser!==registrationUser||auth.currentUser?.uid!==registrationUid))throw error;
+      // The existing browser token can still belong to the previous anonymous session.
+      // Renew only this browser's own token once; never relax ownership rules.
+      stage='renew-token';const rejected=token;
+      await messaging.deleteToken();
+      token=await messaging.getToken({vapidKey:VAPID_KEY,serviceWorkerRegistration:reg});
+      if(!token||token===rejected)throw Object.assign(new Error('token renewal incomplete'),{code:'token-renewal-unavailable'});
+      stage='store-renewed';await save();
+    }
     const previous=localStorage.getItem('dalil_baladi_push');
-    if(previous && previous!==token){await db.collection('pushTokens').doc(previous).delete().catch(()=>{});}
-    localStorage.setItem('dalil_baladi_push', token);
-    recordPushRegistration('verified','');setPushUI('on');
-  }catch(e){const code=String(e.code||e.name||'unknown').replace(/[^a-zA-Z0-9_/-]/g,'').slice(0,80);recordPushRegistration(stage,code);console.warn('push registration failed',stage,code);setPushUI('error');}
-  finally{if(document.getElementById('pushDiagnosticModal')?.classList.contains('show'))pushDiagnostic();}
+    if(previous&&previous!==token)await db.collection('pushTokens').doc(previous).delete().catch(()=>{});
+    localStorage.setItem('dalil_baladi_push',token);recordPushRegistration('verified','');setPushUI('on');
+  }catch(error){
+    const code=String(error.code||error.name||'unknown').replace(/[^a-zA-Z0-9_/-]/g,'').slice(0,80);
+    recordPushRegistration(stage,code);console.warn('push registration failed',stage,code);setPushUI('error');
+  }finally{pushRegistrationRunning=false;if(document.getElementById('pushDiagnosticModal')?.classList.contains('show'))pushDiagnostic();}
 }
 async function unsubscribePush(){
   const token=localStorage.getItem('dalil_baladi_push');
@@ -360,7 +375,7 @@ function initPushUI(){
 let diagnosticReadVersion=0;
 async function pushDiagnostic(){
   const readVersion=++diagnosticReadVersion;
-  const lines=['نسخة الصفحة: 17'];
+  const lines=['نسخة الصفحة: 18'];
   const permission=typeof Notification==='undefined'?'unsupported':Notification.permission;
   lines.push('إذن المتصفح: '+({granted:'مسموح',denied:'مرفوض',default:'لم يتم الاختيار',unsupported:'غير مدعوم'}[permission]));
   try{
