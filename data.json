@@ -22,7 +22,7 @@
       "name": "سوبر ماركت البركة",
       "category": "سوبر ماركت",
       "address": "شارع المحطة - جنب محطة القطار",
-      "phone": "01000000001",
+      "phone": "01xxxxxxxxx",
       "products": "مواد غذائية - منظفات - عصائر",
       "example": true
     },
@@ -30,7 +30,7 @@
       "name": "بقالة أبو الحسن",
       "category": "بقالة",
       "address": "شارع السكة الحديد القديمة",
-      "phone": "01000000002",
+      "phone": "01xxxxxxxxx",
       "products": "سلع يومية وجبن وألبان",
       "example": true
     },
@@ -38,7 +38,7 @@
       "name": "خضار وفاكهة السلام",
       "category": "خضار وفاكهة",
       "address": "السوق - بجوار الملعب",
-      "phone": "01000000003",
+      "phone": "01xxxxxxxxx",
       "products": "خضار وفاكهة طازة يوميًا",
       "example": true
     },
@@ -46,7 +46,7 @@
       "name": "مخبز النور",
       "category": "مخبز وأفران",
       "address": "الشارع الرئيسي - قرب المستوصف",
-      "phone": "01000000004",
+      "phone": "01xxxxxxxxx",
       "products": "عيش بلدي - فينو - مخبوزات",
       "example": true
     },
@@ -54,7 +54,7 @@
       "name": "صيدلية الشفاء",
       "category": "صيدلية",
       "address": "شارع المحطة",
-      "phone": "01000000005",
+      "phone": "01xxxxxxxxx",
       "products": "أدوية ومستلزمات طبية",
       "example": true
     },
@@ -62,7 +62,7 @@
       "name": "مطعم الكبدة البلدي",
       "category": "مطاعم وأكل",
       "address": "مدخل البلد - طريق دكرنس",
-      "phone": "01000000006",
+      "phone": "01xxxxxxxxx",
       "products": "كبدة - طواجن - سندوتشات",
       "example": true
     },
@@ -70,7 +70,7 @@
       "name": "محل موبايلات النجمة",
       "category": "موبايلات واتصالات",
       "address": "الشارع الرئيسي",
-      "phone": "01000000007",
+      "phone": "01xxxxxxxxx",
       "products": "موبايلات - إكسسوارات - كروت شحن",
       "example": true
     },
@@ -78,7 +78,7 @@
       "name": "كهربائي أستاذ محمود",
       "category": "خدمات وصنايعية",
       "address": "خدمة منازل داخل البلد",
-      "phone": "01000000008",
+      "phone": "01xxxxxxxxx",
       "products": "تأسيس وصيانة كهرباء",
       "example": true
     },
@@ -86,7 +86,7 @@
       "name": "سباك أستاذ رمضان",
       "category": "خدمات وصنايعية",
       "address": "خدمة منازل داخل البلد",
-      "phone": "01000000009",
+      "phone": "01xxxxxxxxx",
       "products": "سباكة وصيانة حمامات",
       "example": true
     },
@@ -94,7 +94,7 @@
       "name": "توك توك ونقل البلد",
       "category": "مواصلات",
       "address": "موقف المحطة",
-      "phone": "01000000010",
+      "phone": "01xxxxxxxxx",
       "products": "مشاوير داخل البلد ولدكرنس",
       "example": true
     }
