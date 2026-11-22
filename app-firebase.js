@@ -286,7 +286,7 @@ async function subscribePush(ask=true){
   let stage='permission';
   if(!('Notification' in window)) return setPushUI('unsupported');
   const perm = ask ? await Notification.requestPermission() : Notification.permission;
-  if(perm !== 'granted') return setPushUI('denied');
+  if(perm !== 'granted'){recordPushRegistration('permission',perm);return setPushUI('denied');}
   try{
     stage='worker';
     const reg = await navigator.serviceWorker.register('sw.js',{updateViaCache:'none'});
@@ -375,6 +375,7 @@ async function pushDiagnostic(){
   }catch(e){lines.push('الفحص لم يكتمل: '+e.message);}
   const events=await new Promise(resolve=>{setTimeout(()=>resolve(null),1500);let r;try{r=indexedDB.open('dalil-push-trace',1);}catch(e){resolve(null);return;}r.onupgradeneeded=()=>r.result.createObjectStore('events',{autoIncrement:true});r.onerror=()=>resolve(null);r.onsuccess=()=>{const d=r.result;try{const tx=d.transaction('events','readonly'),q=tx.objectStore('events').getAll();q.onsuccess=()=>{resolve(q.result);d.close();};q.onerror=()=>{resolve(null);d.close();};}catch(e){resolve(null);d.close();}};});
   lines.push('سجل الاستقبال البعيد على هذا الجهاز فقط:');
+  lines.push('السجل محفوظ بين التحديثات؛ نسخة الخدمة أعلاه هي النسخة الحالية فقط.');
   const labels={'push-event':'وصل حدث دفع إلى الجهاز','background-sdk':'استلمه معالج الخلفية','background-display-observed':'وُجد إشعار الإرسال في قائمة النظام','background-display-unknown':'لم يؤكد الفحص وجود إشعار النظام','display-query-unavailable':'تعذر فحص قائمة إشعارات النظام','background-display-accepted':'قُبل طلب العرض بالخلفية','background-display-error':'فشل طلب العرض بالخلفية','foreground-sdk':'استلمه معالج الصفحة','foreground-permission-denied':'الإذن مرفوض أثناء الاستقبال','foreground-display-accepted':'قُبل طلب العرض بالصفحة','foreground-display-error':'فشل طلب العرض بالصفحة'};
   if(events===null)lines.push('السجل غير متاح');
   else if(!events.length)lines.push('لم يُسجل استقبال بعيد منذ إضافة هذا الفحص. لا يشمل المحاولات السابقة أو الاختبار المحلي.');
