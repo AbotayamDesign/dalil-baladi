@@ -181,9 +181,28 @@ body{font-family:Tahoma,'Segoe UI',Arial,sans-serif}
 body{background-color:#f8faf9;background-image:radial-gradient(ellipse at 100% 80%,#d5e8de55,transparent 55%),radial-gradient(ellipse at 0% 95%,#eaddb52b,transparent 44%);background-attachment:fixed}
 body::before{content:'';position:fixed;inset:0;z-index:-1;pointer-events:none;background-image:radial-gradient(circle,#8bbaa026 1.5px,transparent 2px);background-size:12px 12px;clip-path:polygon(0 72%,20% 83%,35% 71%,50% 87%,100% 45%,100% 100%,0 100%)}
 .brand-entry{text-align:center;padding:26px 22px 18px;position:relative;isolation:isolate}.brand-entry img{height:108px;width:108px;display:block;margin:0 auto 10px}.brand-entry h2{font-size:27px;color:#33483e;line-height:1.5;margin:0 0 4px}.brand-entry .brand-tagline{font-size:13px;color:#62756b;margin:0 0 7px}.brand-entry .brand-place{font-size:11px;color:#7b877f;line-height:1.8;max-width:285px;margin:auto}.brand-entry::after{content:'';width:42px;height:3px;border-radius:2px;background:#d6b755;display:block;margin:13px auto 0}.topbar .logo img{height:38px;width:38px;border-radius:10px}.install-card{background:#eef5f0}
+
+/* Refresh-only fullscreen identity, never blocks taps or loading. */
+.refresh-brand{display:none;position:fixed;inset:0;z-index:9999;align-items:center;justify-content:center;pointer-events:none;background:#f8faf9;background-image:radial-gradient(circle at 85% 85%,#d5e8de55,transparent 55%),radial-gradient(circle,#8bbaa01a 1px,transparent 2px);background-size:auto,12px 12px}
+.refresh-brand.is-refresh{display:flex;animation:brandCurtain .85s cubic-bezier(.22,.68,0,1) both}
+.refresh-brand .brand-entry{animation:brandRise .85s cubic-bezier(.22,.68,0,1) both;width:100%;max-width:400px}
+@keyframes brandCurtain{0%{opacity:1}65%{opacity:1}100%{opacity:0;visibility:hidden}}
+@keyframes brandRise{0%{opacity:0;transform:translateY(14px) scale(.97)}35%,65%{opacity:1;transform:none}100%{opacity:0;transform:translateY(-8px) scale(1.015)}}
+@media(prefers-reduced-motion:reduce){.refresh-brand.is-refresh{animation:none;display:none}}
 </style>
 </head>
 <body>
+<div class="refresh-brand" id="refreshBrand" aria-hidden="true">  <section class="brand-entry" aria-label="مرحبًا بك في دليل بلدي">
+    <img src="icon.svg?v=25" alt="شعار دليل بلدي، بيت ودليل مفتوح بعلامة ذهبية" width="108" height="108" fetchpriority="high">
+    <h2>دليل بلدي</h2>
+    <p class="brand-tagline">أخبار بلدك وخدماتها، أقرب ليك</p>
+    <p class="brand-place">الخشاشنه والمرساه<br>مركز دكرنس، الدقهلية</p>
+  </section>
+</div>
+<script>
+(()=>{const n=performance.getEntriesByType("navigation")[0];if(n?.type!=="reload")return;const e=document.getElementById("refreshBrand");e.classList.add("is-refresh");e.addEventListener("animationend",()=>e.remove(),{once:true});})();
+</script>
+
 
 <div class="topbar">
   <div class="logo"><img src="icon.svg?v=25" alt="دليل بلدي"><span>دليل بلدي</span></div>
@@ -219,12 +238,7 @@ body::before{content:'';position:fixed;inset:0;z-index:-1;pointer-events:none;ba
 
 <!-- ===== Home ===== -->
 <div class="view active" id="view-home">
-  <section class="brand-entry" aria-label="مرحبًا بك في دليل بلدي">
-    <img src="icon.svg?v=25" alt="شعار دليل بلدي، بيت ودليل مفتوح بعلامة ذهبية" width="108" height="108" fetchpriority="high">
-    <h2>دليل بلدي</h2>
-    <p class="brand-tagline">أخبار بلدك وخدماتها، أقرب ليك</p>
-    <p class="brand-place">الخشاشنه والمرساه<br>مركز دكرنس، الدقهلية</p>
-  </section>
+
   <div class="install-card" id="installCard">
     <h3>⬇️ تثبيت التطبيق</h3>
     <p>ثبّت «دليل بلدي» على موبايلك عشان يفتح معاك بضغطة واحدة من الشاشة الرئيسية، زي أي تطبيق.</p>
