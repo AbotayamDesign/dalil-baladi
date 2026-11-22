@@ -107,6 +107,7 @@
   .modal ol li{margin-bottom:6px}
   .modal .close{margin-top:12px;width:100%;background:var(--fb-blue);color:#fff;border-radius:8px;padding:10px;font-weight:700;font-size:15px}
 
+  .local-note{font-size:11.5px;color:var(--secondary);text-align:center;padding:2px 8px 8px}
   .empty-msg{text-align:center;color:var(--secondary);padding:30px 20px;font-size:14px}
 </style>
 </head>
@@ -145,9 +146,10 @@
     <p>دليل محلات وأخبار قرية الخشاشنه والمرساه — مركز دكرنس، محافظة الدقهلية. نسخة أولى للتجربة.</p>
   </div>
   <div class="install-card" id="installCard">
-    <h3>⬇️ ثبّت التطبيق على موبايلك</h3>
-    <p>اضغط الزرار وهيطلعلك تأكيد التثبيت — هيظهر دليل بلدي بأيقونته جنب باقي التطبيقات، مجانًا ومن غير متجر.</p>
-    <button class="install-btn" id="installBtn">تثبيت التطبيق</button>
+    <h3>⬇️ تثبيت التطبيق (تحت الاختبار)</h3>
+    <p>خاصية التثبيت المباشر لسه تحت التجربة ومش متأكدة على كل الأجهزة. لو ضغطت وظهرلك تأكيد تثبيت يبقى نجحت؛ لو مظهرش، هتظهرلك خطوات الإضافة اليدوية للشاشة الرئيسية.</p>
+    <button class="install-btn" id="installBtn">تجربة التثبيت</button>
+  </div>
   </div>
   <div id="homeNews"></div>
 </div>
@@ -171,12 +173,16 @@
 
 <!-- ===== News ===== -->
 <div class="view" id="view-news">
+  <div class="card" style="padding:14px">
+    <div style="font-weight:700;font-size:16px;margin-bottom:4px">📰 مصادر أخبار البلد</div>
+    <div style="font-size:13.5px;color:var(--secondary)">دي صفحات فيسبوك من البلد جمّعناها في مكان واحد مع وصف مختصر من إعدادنا. التطبيق مش بيسحب منشورات آليًا ولا دي خلاصة أخبار حية — للمنشورات الكاملة افتح المصدر من الرابط.</div>
+  </div>
   <div id="newsList"></div>
 </div>
 
 <div class="footer-note">
   دليل بلدي — نسخة تجريبية • مش تابع لفيسبوك بأي شكل<br>
-  زرار الإعجاب شغال وبيتسجّل على جهازك بس لحد ما يتفعّل النظام الكامل • التعليقات قريبًا
+  الإعجاب يُحفظ على جهازك فقط • التعليقات قريبًا
 </div>
 
 <!-- Install instructions modal -->
@@ -223,17 +229,13 @@ const LINK_SVG='<svg viewBox="0 0 24 24"><path d="M19 19H5V5h7V3H5c-1.11 0-2 .9-
 function actionBar(item){
   const likes=getLikes();
   const liked=!!likes[item.id];
-  const count=(item.baseLikes||0)+(liked?1:0);
   return `
-  <div class="stats-row">
-    <span class="like-count" data-id="${item.id}">👍 ${count}</span>
-    <span>${item.comments||0} تعليق · ${item.shares||0} مشاركة</span>
-  </div>
   <div class="actions">
-    <button class="action like-btn ${liked?'liked':''}" data-id="${item.id}">${LIKE_SVG}<span>أعجبني</span></button>
-    <button class="action disabled" title="قريبًا">${COMMENT_SVG}<span>تعليق</span></button>
+    <button class="action like-btn ${liked?'liked':''}" data-id="${item.id}">${LIKE_SVG}<span>${liked?'أعجبك':'أعجبني'}</span></button>
+    <button class="action disabled">${COMMENT_SVG}<span>تعليق (قريبًا)</span></button>
     <button class="action share-btn" data-id="${item.id}" data-title="${encodeURIComponent(item.title)}" data-url="${encodeURIComponent(item.url||location.href)}">${SHARE_SVG}<span>مشاركة</span></button>
-  </div>`;
+  </div>
+  <div class="local-note">إعجابك بيتحفظ على جهازك بس ومبيظهرش لحد غيرك — مفيش أعداد إعجابات حقيقية لسه</div>`;
 }
 
 function postCard(item,opts){
@@ -277,7 +279,7 @@ function renderShops(){
   el.innerHTML=list.map(s=>postCard({
     id:'shop-'+s.id, title:s.name, sub:s.category+' · الخشاشنه والمرساه',
     text:(s.desc||'')+'\n📞 '+s.phone,
-    demo:true, baseLikes:s.baseLikes||0, comments:0, shares:0
+    demo:true
   })).join('');
   bindActions(el);
 }
@@ -307,12 +309,9 @@ function bindActions(root){
       const likes=getLikes();
       if(likes[id])delete likes[id];else likes[id]=true;
       setLikes(likes);
-      btn.classList.toggle('liked',!!likes[id]);
-      const cnt=btn.closest('.card').querySelector('.like-count');
-      if(cnt){
-        const base=parseInt((cnt.textContent.match(/👍 (\d+)/)||[0,0])[1])+(likes[id]?1:-1);
-        cnt.textContent='👍 '+base;
-      }
+      const on=!!likes[id];
+      btn.classList.toggle('liked',on);
+      btn.querySelector('span').textContent=on?'أعجبك':'أعجبني';
     };
   });
   root.querySelectorAll('.share-btn').forEach(btn=>{
