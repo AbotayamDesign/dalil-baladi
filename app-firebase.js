@@ -241,11 +241,13 @@ async function subscribePush(){
   const perm = await Notification.requestPermission();
   if(perm !== 'granted') return setPushUI('denied');
   try{
-    const reg = await navigator.serviceWorker.register('firebase-messaging-sw.js');
+    const reg = await navigator.serviceWorker.register('sw.js');
     const messaging = firebase.messaging();
     const token = await messaging.getToken({ vapidKey: VAPID_KEY, serviceWorkerRegistration: reg });
     if(!token) return setPushUI('error');
+    await authReady;
     await db.collection('pushTokens').doc(token).set({
+      uid: auth.currentUser.uid,
       at: firebase.firestore.FieldValue.serverTimestamp(), ua: navigator.userAgent.slice(0,120)
     });
     localStorage.setItem('dalil_baladi_push', token);
@@ -255,6 +257,7 @@ async function subscribePush(){
 async function unsubscribePush(){
   const token = localStorage.getItem('dalil_baladi_push');
   if(token){ try{ await db.collection('pushTokens').doc(token).delete(); }catch(e){ console.warn('unsub', e); } }
+  try{ await firebase.messaging().deleteToken(); }catch(e){ console.warn('push delete',e); }
   localStorage.removeItem('dalil_baladi_push');
   setPushUI('off');
 }
@@ -276,6 +279,13 @@ function setPushUI(state){
   btn.dataset.state = state;
 }
 function initPushUI(){
+  if('Notification' in window && firebase.messaging.isSupported()){
+    firebase.messaging().onMessage(async payload=>{
+      if(Notification.permission!=='granted') return;
+      const reg=await navigator.serviceWorker.ready; const d=payload.data||{};
+      reg.showNotification(d.title||'دليل بلدي',{body:d.body||'',icon:'icon-192.png',dir:'rtl',data:{itemId:d.itemId||'',itemType:d.itemType||''}});
+    });
+  }
   const btn = document.getElementById('pushBell');
   if(!btn) return;
   setPushUI(localStorage.getItem('dalil_baladi_push') ? 'on' : 'off');
